@@ -27,6 +27,11 @@
 - OpenCSV
 - OpenCV (manual setup)
 
+## OpenCV setup command (powershell)
+# Replace -Dfile with your own opencv filepath.
+mvn install:install-file "-Dfile=C:\opencv\build\java\opencv-480.jar" "-DgroupId=org.opencv" "-DartifactId=opencv" "-Dversion=4.8.0" "-Dpackaging=jar"
+
+
 ## Notes
 - Make sure `attendance.db` is created in the project directory on first run.
 - Log files will be written to `attendance.log`.

@@ -55,6 +55,12 @@
       <version>5.9</version>
     </dependency>
 
+    <dependency>
+        <groupId>org.opencv</groupId>
+        <artifactId>opencv</artifactId>
+        <version>4.8.0</version>
+    </dependency>
+
     <!-- Tests -->
     <dependency>
       <groupId>org.junit.jupiter</groupId>

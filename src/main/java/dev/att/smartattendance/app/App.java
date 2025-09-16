@@ -7,8 +7,19 @@ import javafx.scene.control.*;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.scene.layout.VBox;
-
 public class App extends Application {
+
+    public static void main(String[] args) {
+        // launch();
+
+        // For this to work, uncomment CropDemo and save some images first. Try saving around 8-10.
+        // Afterwards, comment it out and uncomment RecognitionDemo to see if it works and detects.
+        // After testing, you can delete the images from the person1 folder.
+        // person2 folder contains an image of a random person in order for this code to work.
+        
+        // CropDemo.main(args);
+        // RecognitionDemo.main(args);
+    }
 
     @Override
     public void start(Stage primaryStage) {
@@ -64,13 +75,8 @@ public class App extends Application {
         Label welcomeLabel = new Label("Welcome " + username + "!");
         VBox layout = new VBox(10, welcomeLabel);
         layout.setStyle("-fx-padding: 20; -fx-alignment: center; -fx-font-size:40px;");
-
+        
         return new Scene(layout, getScreenWidth(), getScreenHeight());
     }
 
-
-
-    public static void main(String[] args) {
-        launch();
-    }
 }
