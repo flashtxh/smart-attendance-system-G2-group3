@@ -3,14 +3,17 @@ package dev.att.smartattendance.app;
 import javafx.application.Application;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.PasswordField;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.VBox;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
-import javafx.scene.layout.VBox;
 public class App extends Application {
 
     public static void main(String[] args) {
-        // launch();
+        launch();
 
         // For this to work, uncomment CropDemo and save some images first. Try saving around 8-10.
         // Afterwards, comment it out and uncomment RecognitionDemo to see if it works and detects.
@@ -43,33 +46,44 @@ public class App extends Application {
     }
 
     private Scene createLoginScene(Stage stage) {
+        Label titleLabel = new Label("Smart Attendance Login");
+        titleLabel.getStyleClass().add("title");
+
         TextField usernameField = new TextField();
         usernameField.setPromptText("Username");
-        usernameField.setMaxWidth(400);
+        usernameField.getStyleClass().add("text-field");
 
         PasswordField passwordField = new PasswordField();
         passwordField.setPromptText("Password");
-        passwordField.setMaxWidth(400);
+        passwordField.getStyleClass().add("password-field");
 
         Button loginButton = new Button("Login");
+        loginButton.getStyleClass().add("button");
+
         Label messageLabel = new Label();
+        messageLabel.getStyleClass().add("error");
 
         loginButton.setOnAction(e -> {
             String username = usernameField.getText().strip();
             String password = passwordField.getText().strip();
 
-            if(!username.isEmpty() && !password.isEmpty()) {
+            if (!username.isEmpty() && !password.isEmpty()) {
                 stage.setScene(createHomeScene(username));
             } else {
                 messageLabel.setText("Please enter username and password");
             }
         });
 
-        VBox layout = new VBox(10, usernameField, passwordField, loginButton, messageLabel);
-        layout.setStyle("-fx-padding: 20; -fx-alignment: center; -fx-font-size:15px");
+        VBox layout = new VBox(25, titleLabel, usernameField, passwordField, loginButton, messageLabel);
+        layout.getStyleClass().add("vbox");
 
-        return new Scene(layout, getScreenWidth(), getScreenHeight());
+        Scene scene = new Scene(layout, getScreenWidth(), getScreenHeight());
+        scene.getStylesheets().add(getClass().getResource("/css/login.css").toExternalForm());
+
+        return scene;
     }
+
+
 
     private Scene createHomeScene(String username) {
         Label welcomeLabel = new Label("Welcome " + username + "!");
