@@ -1,6 +1,7 @@
 package dev.att.smartattendance.app;
 
 import javafx.application.Application;
+import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -10,6 +11,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.VBox;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
+
 public class App extends Application {
 
     public static void main(String[] args) {
@@ -67,12 +69,15 @@ public class App extends Application {
             String username = usernameField.getText().strip();
             String password = passwordField.getText().strip();
 
-            if (!username.isEmpty() && !password.isEmpty()) {
+            if (username.isEmpty() || password.isEmpty()) {
+                messageLabel.setText("Please enter username and password");
+            } else if (username.equals("admin") && password.equals("admin")) { // testing purposes
                 stage.setScene(createHomeScene(username));
             } else {
-                messageLabel.setText("Please enter username and password");
+                messageLabel.setText("Invalid username or password");
             }
         });
+
 
         VBox layout = new VBox(25, titleLabel, usernameField, passwordField, loginButton, messageLabel);
         layout.getStyleClass().add("vbox");
@@ -86,11 +91,26 @@ public class App extends Application {
 
 
     private Scene createHomeScene(String username) {
-        Label welcomeLabel = new Label("Welcome " + username + "!");
-        VBox layout = new VBox(10, welcomeLabel);
-        layout.setStyle("-fx-padding: 20; -fx-alignment: center; -fx-font-size:40px;");
-        
-        return new Scene(layout, getScreenWidth(), getScreenHeight());
+        Label welcomeLabel = new Label("Welcome, " + username + "!");
+        welcomeLabel.getStyleClass().add("welcome-label");
+
+        Button logoutButton = new Button("Logout");
+        logoutButton.getStyleClass().add("btn-logout");
+
+        VBox layout = new VBox(20, welcomeLabel, logoutButton);
+        layout.getStyleClass().add("home-layout");
+        layout.setAlignment(Pos.CENTER);
+
+        // When logout clicked, go back to login scene
+        logoutButton.setOnAction(e -> {
+            Stage stage = (Stage) logoutButton.getScene().getWindow();
+            stage.setScene(createLoginScene(stage));
+        });
+
+        Scene scene = new Scene(layout, getScreenWidth(), getScreenHeight());
+        scene.getStylesheets().add(getClass().getResource("/css/home.css").toExternalForm());
+
+        return scene;
     }
 
 }
