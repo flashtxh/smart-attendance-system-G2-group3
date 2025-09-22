@@ -31,8 +31,12 @@ public class App extends Application {
     private volatile boolean cameraActive = false;
 
     static {
-        System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
-    }
+    // Load the native OpenCV dylib directly (no java.library.path needed)
+    System.loadLibrary(Core.NATIVE_LIBRARY_NAME); // For windows
+    // System.load("/usr/local/opencv/share/java/opencv4/libopencv_java480.dylib"); // For MAC
+    // If you ever move the file, update this path.
+}
+
     public static void main(String[] args) {
         launch();
 
