@@ -1,33 +1,24 @@
 package dev.att.smartattendance.app;
 
+import org.opencv.core.*;
+import org.opencv.imgcodecs.Imgcodecs;
+import org.opencv.imgproc.Imgproc;
+import org.opencv.objdetect.CascadeClassifier;
+import org.opencv.utils.Converters;
+import org.opencv.videoio.VideoCapture;
+
+import javax.swing.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-
-import javax.swing.ImageIcon;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-
-import org.opencv.core.Core;
-import org.opencv.core.Mat;
-import org.opencv.core.MatOfFloat;
-import org.opencv.core.MatOfInt;
-import org.opencv.core.MatOfRect;
-import org.opencv.core.Point;
-import org.opencv.core.Rect;
-import org.opencv.core.Scalar;
-import org.opencv.core.Size;
-import org.opencv.imgcodecs.Imgcodecs;
-import org.opencv.imgproc.Imgproc;
-import org.opencv.objdetect.CascadeClassifier;
-import org.opencv.videoio.VideoCapture;
 
 public class RecognitionDemo {
     static {
         // Load OpenCV native library
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
     }
+
     public static void main(String[] args) {
         // if (args.length < 3) {
         //     System.out.println("Usage: java FaceRecognitionDemo <person1-dir> <person2-dir> <haarcascade-path>");
@@ -37,14 +28,24 @@ public class RecognitionDemo {
 
         String person1Dir = "src\\main\\resources\\images\\person1"; // args[0];
         String person2Dir = "src\\main\\resources\\images\\person2"; // args[1];
-        String cascadePath = "src\\main\\resources\\fxml\\haarcascade_frontalface_alt.xml"; // args[2];
+        // String cascadePath = "src\\main\\resources\\fxml\\haarcascade_frontalface_alt.xml"; // args[2];
+        
 
         // Load face detector
-        CascadeClassifier faceDetector = new CascadeClassifier(cascadePath);
-        if (faceDetector.empty()) {
-            System.out.println("Error loading cascade file: " + cascadePath);
+        CascadeClassifier faceDetector = new CascadeClassifier();
+        CascadeClassifier mouthCascade = new CascadeClassifier();
+
+        if(!faceDetector.load("src\\main\\resources\\fxml\\haarcascade_frontalface_alt.xml")) {
+            System.out.println("Could not load face xml");
             return;
         }
+        if(!mouthCascade.load("src\\main\\resources\\fxml\\Mouth.xml")) {
+            System.out.println("Could not load mouth xml");
+            return;
+        }
+
+        Scalar green = new Scalar(0,128,0);
+        Scalar red = new Scalar(0,0,255);
 
         // Load training images and compute histograms
         List<Mat> person1Images = loadImages(person1Dir);
@@ -74,6 +75,7 @@ public class RecognitionDemo {
 
         Mat webcamFrame = new Mat();
         while (frame.isVisible() && capture.read(webcamFrame)) {
+
             Mat gray = new Mat();
             Imgproc.cvtColor(webcamFrame, gray, Imgproc.COLOR_BGR2GRAY);
 
@@ -82,25 +84,48 @@ public class RecognitionDemo {
             faceDetector.detectMultiScale(gray, faces, 1.1, 3, 0, new Size(30, 30), new Size());
 
             for (Rect rect : faces.toArray()) {
-                // Draw rectangle
-                Imgproc.rectangle(webcamFrame, new Point(rect.x, rect.y),
-                        new Point(rect.x + rect.width, rect.y + rect.height),
-                        new Scalar(0, 255, 0), 2);
 
-                // Crop and resize face
-                Mat face = gray.submat(rect);
-                Imgproc.resize(face, face, new Size(200, 200));
-                Mat faceHist = computeHistogram(face);
+                // Mat faceGray = gray.submat(rect);
+                // Mouth Detection
+                Rect mouthROIrect = new Rect(
+                    rect.x,
+                    rect.y + (int)(rect.height * 0.55),
+                    rect.width,
+                    (int)(rect.height * 0.45)
+                );
 
-                // Compare with training histograms
-                double bestScore1 = getBestHistogramScore(faceHist, person1Histograms);
-                double bestScore2 = getBestHistogramScore(faceHist, person2Histograms);
+                boolean maskDetected = false;
+                if(mouthROIrect.y + mouthROIrect.height <= gray.rows()) {
+                    Mat mouthROI = gray.submat(mouthROIrect);
+                    MatOfRect mouths = new MatOfRect();
+                    mouthCascade.detectMultiScale(mouthROI, mouths, 1.5, 5, 0, new Size(25, 15), new Size());
+                    maskDetected = (mouths.toArray().length == 0);
+                }
 
-                // Label based on best score (correlation: higher is better)
-                String displayText = bestScore1 > bestScore2 && bestScore1 > 0.7 ? "ZHANG Zhiyuan" :
-                        bestScore2 > bestScore1 && bestScore2 > 0.7 ? "ZHANG Zhiyuan" : "Unknown";
-                Imgproc.putText(webcamFrame, displayText, new Point(rect.x, rect.y - 10),
-                        Imgproc.FONT_HERSHEY_SIMPLEX, 0.9, new Scalar(0, 255, 0), 2);
+                if(maskDetected) {
+                    Imgproc.rectangle(webcamFrame, rect.tl(), rect.br(), red, 2);
+                    Imgproc.putText(webcamFrame, "Mask Detected", new Point(rect.x, rect.y - 10), Imgproc.FONT_HERSHEY_SIMPLEX, 0.9, red);
+                } else {
+                    // Draw rectangle
+                    Imgproc.rectangle(webcamFrame, new Point(rect.x, rect.y),
+                            new Point(rect.x + rect.width, rect.y + rect.height),
+                            green, 2);
+
+                    // Crop and resize face
+                    Mat face = gray.submat(rect);
+                    Imgproc.resize(face, face, new Size(200, 200));
+                    Mat faceHist = computeHistogram(face);
+
+                    // Compare with training histograms
+                    double bestScore1 = getBestHistogramScore(faceHist, person1Histograms);
+                    double bestScore2 = getBestHistogramScore(faceHist, person2Histograms);
+
+                    // Label based on best score (correlation: higher is better)
+                    String displayText = bestScore1 > bestScore2 && bestScore1 > 0.7 ? "ZHANG Zhiyuan" :
+                            bestScore2 > bestScore1 && bestScore2 > 0.7 ? "ZHANG Zhiyuan" : "Unknown";
+                    Imgproc.putText(webcamFrame, displayText, new Point(rect.x, rect.y - 10),
+                            Imgproc.FONT_HERSHEY_SIMPLEX, 0.9, green, 2);
+                }
             }
 
             // Display frame
