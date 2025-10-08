@@ -68,7 +68,7 @@ public class App extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-        //iInitialize face detector
+        // initialize face detector
         faceDetector = new CascadeClassifier(cascadePath);
         if (faceDetector.empty()) {
             showAlert("Error", "Could not load face detection model!");
@@ -466,7 +466,7 @@ public class App extends Application {
                             String recognizedName = recognizeFace(resizedFace);
                             
                             if (recognizedName.equals(expectedUsername)) {
-                                // SUCCESS - Face matches!
+                                // Face matches
                                 Imgproc.rectangle(currentFrame, new Point(rect.x, rect.y),
                                     new Point(rect.x + rect.width, rect.y + rect.height),
                                     new Scalar(0, 255, 0), 3);
@@ -553,27 +553,106 @@ public class App extends Application {
         Label welcomeLabel = new Label("✓ Access Granted - Welcome, " + username + "!");
         welcomeLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #00cc00;");
 
-        Label infoLabel = new Label("Face verification successful. You are now logged in.");
-        infoLabel.setStyle("-fx-font-size: 14px;");
+        Label statusLabel = new Label("Camera Active - Monitoring");
+        statusLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #0066cc;");
+
+        ImageView webcamView = new ImageView();
+        webcamView.setFitWidth(640);
+        webcamView.setFitHeight(480);
+        webcamView.setPreserveRatio(true);
 
         Button logoutButton = new Button("Logout");
         logoutButton.getStyleClass().add("btn-logout");
 
         logoutButton.setOnAction(e -> {
+            stopCamera();
             loggedInUsername = "";
             faceVerified = false;
             Stage stage = (Stage) logoutButton.getScene().getWindow();
             stage.setScene(createLoginScene(stage));
         });
 
-        VBox layout = new VBox(30, welcomeLabel, infoLabel, logoutButton);
+        VBox layout = new VBox(20, welcomeLabel, statusLabel, webcamView, logoutButton);
         layout.setAlignment(Pos.CENTER);
-        layout.setPadding(new Insets(50));
+        layout.setPadding(new Insets(20));
 
         Scene scene = new Scene(layout, getScreenWidth(), getScreenHeight());
         scene.getStylesheets().add(getClass().getResource("/css/home.css").toExternalForm());
 
+        // auto-start camera in home scene
+        Platform.runLater(() -> startCameraInHomeScene(webcamView, statusLabel, username));
+
         return scene;
+    }
+
+    private void startCameraInHomeScene(ImageView imageView, Label statusLabel, String username) {
+        capture = new VideoCapture(0);
+        if (!capture.isOpened()) {
+            statusLabel.setText("Camera unavailable");
+            return;
+        }
+        cameraActive = true;
+
+        Task<Void> frameGrabber = new Task<>() {
+            @Override
+            protected Void call() {
+                Mat frame = new Mat();
+                Mat gray = new Mat();
+                
+                while (cameraActive) {
+                    if (capture.read(frame)) {
+                        currentFrame = frame.clone();
+                        Imgproc.cvtColor(currentFrame, gray, Imgproc.COLOR_BGR2GRAY);
+                        
+                        MatOfRect faces = new MatOfRect();
+                        faceDetector.detectMultiScale(gray, faces, 1.1, 3, 0, 
+                            new Size(30, 30), new Size());
+                        
+                        Rect[] faceArray = faces.toArray();
+                        
+                        for (Rect rect : faceArray) {
+                            Mat face = gray.submat(rect);
+                            Mat resizedFace = new Mat();
+                            Imgproc.resize(face, resizedFace, new Size(200, 200));
+                            
+                            String recognizedName = recognizeFace(resizedFace);
+                            
+                            Scalar color = recognizedName.equals(username) ? 
+                                new Scalar(0, 255, 0) : new Scalar(255, 165, 0);
+                            
+                            Imgproc.rectangle(currentFrame, new Point(rect.x, rect.y),
+                                new Point(rect.x + rect.width, rect.y + rect.height),
+                                color, 3);
+                            
+                            String displayText = "Welcome, " + recognizedName + "!";
+                            Imgproc.putText(currentFrame, displayText, 
+                                new Point(rect.x, rect.y - 10),
+                                Imgproc.FONT_HERSHEY_SIMPLEX, 0.9, color, 2);
+                            
+                            resizedFace.release();
+                            face.release();
+                        }
+                        
+                        Image imageToShow = mat2Image(currentFrame);
+                        Platform.runLater(() -> imageView.setImage(imageToShow));
+                    }
+                    
+                    try {
+                        Thread.sleep(33);
+                    } catch (InterruptedException e) {
+                        break;
+                    }
+                }
+                
+                frame.release();
+                gray.release();
+                return null;
+            }
+        };
+
+        Thread th = new Thread(frameGrabber);
+        th.setDaemon(true);
+        th.start();
     }
 
     private String recognizeFace(Mat face) {
