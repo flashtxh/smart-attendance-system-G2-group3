@@ -34,7 +34,6 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
-import javafx.scene.control.TextInputDialog;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
@@ -48,6 +47,7 @@ public class App extends Application {
     private volatile boolean cameraActive = false;
     private CascadeClassifier faceDetector;
     private Map<String, List<Mat>> personHistograms = new HashMap<>();
+    private Map<String, String> userCredentials = new HashMap<>(); // username -> password
     private Mat currentFrame = new Mat();
     private String baseImagePath = "src/main/resources/images/";
     private String cascadePath = "src/main/resources/fxml/haarcascade_frontalface_alt.xml";
@@ -55,22 +55,28 @@ public class App extends Application {
     private int captureCount = 0;
     private String capturePersonName = "";
     private boolean capturingMode = false;
+    private String loggedInUsername = "";
+    private boolean faceVerified = false;
 
     static {
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
     }
+
     public static void main(String[] args) {
         launch();
     }
 
     @Override
     public void start(Stage primaryStage) {
-        // initialize face detector
+        //iInitialize face detector
         faceDetector = new CascadeClassifier(cascadePath);
         if (faceDetector.empty()) {
             showAlert("Error", "Could not load face detection model!");
             return;
         }
+        
+        // initialize dummy credentials (In production, use a database)
+        initializeCredentials();
         
         // load existing persons
         loadExistingPersons();
@@ -84,6 +90,15 @@ public class App extends Application {
             stopCamera();
             System.exit(0);
         });
+    }
+
+    private void initializeCredentials() {
+        // sample credentials - in production, load from database
+        userCredentials.put("Naren", "123");
+        userCredentials.put("Admin", "admin");
+        
+        // add more users as needed
+        System.out.println("Initialized " + userCredentials.size() + " user accounts");
     }
 
     private void loadExistingPersons() {
@@ -100,7 +115,7 @@ public class App extends Application {
                 List<Mat> images = loadImages(personDir.getAbsolutePath());
                 if (!images.isEmpty()) {
                     personHistograms.put(personName, computeHistograms(images));
-                    System.out.println("Loaded " + images.size() + " images for " + personName);
+                    System.out.println("Loaded " + images.size() + " face images for " + personName);
                 }
             }
         }
@@ -175,8 +190,26 @@ public class App extends Application {
             String username = usernameField.getText().strip();
             String password = passwordField.getText().strip();
 
-            if (!username.isEmpty() && !password.isEmpty()) {
-                stage.setScene(createHomeScene(username));
+            if (username.isEmpty() || password.isEmpty()) {
+                messageLabel.setText("Please enter both username and password");
+                return;
+            }
+
+            // check credentials
+            if (userCredentials.containsKey(username) && 
+                userCredentials.get(username).equals(password)) {
+                
+                // check if user has face data enrolled
+                if (!personHistograms.containsKey(username)) {
+                    messageLabel.setText("No face data found. Please enroll your face first.");
+                    // redirect to enrollment
+                    stage.setScene(createEnrollmentScene(stage, username));
+                } else {
+                    // proceed to face verification
+                    loggedInUsername = username;
+                    faceVerified = false;
+                    stage.setScene(createVerificationScene(stage, username));
+                }
             } else {
                 messageLabel.setText("Invalid username or password");
             }
@@ -191,72 +224,44 @@ public class App extends Application {
         return scene;
     }
 
-    private Scene createHomeScene(String username) {
-        Label welcomeLabel = new Label("Welcome, " + username + "!");
-        welcomeLabel.getStyleClass().add("welcome-label");
+    private Scene createEnrollmentScene(Stage stage, String username) {
+        Label titleLabel = new Label("Face Enrollment Required");
+        titleLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold;");
+
+        Label infoLabel = new Label("Welcome, " + username + "! We need to capture your face for attendance verification.");
+        infoLabel.setWrapText(true);
+        infoLabel.setStyle("-fx-font-size: 14px;");
 
         ImageView webcamView = new ImageView();
         webcamView.setFitWidth(640);
         webcamView.setFitHeight(480);
         webcamView.setPreserveRatio(true);
 
-        Label statusLabel = new Label("Camera Off");
-        statusLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #666;");
+        Label statusLabel = new Label("Click 'Start Enrollment' to begin");
+        statusLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #0066cc; -fx-font-weight: bold;");
 
-        Button toggleCamBtn = new Button("Turn Camera On");
-        toggleCamBtn.getStyleClass().add("btn-togglecam");
+        Button startEnrollBtn = new Button("Start Enrollment");
+        startEnrollBtn.getStyleClass().add("btn-togglecam");
 
-        Button enrollBtn = new Button("Enroll New Face");
-        enrollBtn.getStyleClass().add("btn-enroll");
-        enrollBtn.setDisable(true);
+        Button backBtn = new Button("Back to Login");
+        backBtn.getStyleClass().add("btn-logout");
 
-        Button logoutButton = new Button("Logout");
-        logoutButton.getStyleClass().add("btn-logout");
-
-        // toggle camera (idk why a bit buggy pls figure it out later)
-        toggleCamBtn.setOnAction(e -> {
+        startEnrollBtn.setOnAction(e -> {
             if (!cameraActive) {
-                startCamera(webcamView, statusLabel);
-                toggleCamBtn.setText("Turn Camera Off");
-                enrollBtn.setDisable(false);
-                statusLabel.setText("Camera Active - Recognizing Faces");
-            } else {
-                stopCamera();
-                toggleCamBtn.setText("Turn Camera On");
-                enrollBtn.setDisable(true);
-                webcamView.setImage(null);
-                statusLabel.setText("Camera Off");
+                startEnrollmentProcess(username, webcamView, statusLabel, startEnrollBtn, backBtn, stage);
+                startEnrollBtn.setDisable(true);
             }
         });
 
-        // enroll new face
-        enrollBtn.setOnAction(e -> {
-            if (cameraActive) {
-                TextInputDialog dialog = new TextInputDialog();
-                dialog.setTitle("Enroll New Person");
-                dialog.setHeaderText("Enter the person's name:");
-                dialog.setContentText("Name:");
-                
-                dialog.showAndWait().ifPresent(name -> {
-                    if (!name.trim().isEmpty()) {
-                        startEnrollment(name.trim(), statusLabel);
-                    }
-                });
-            }
-        });
-
-        // logout
-        logoutButton.setOnAction(e -> {
+        backBtn.setOnAction(e -> {
             stopCamera();
-            Stage stage = (Stage) logoutButton.getScene().getWindow();
             stage.setScene(createLoginScene(stage));
         });
 
-        HBox buttonBox = new HBox(15, toggleCamBtn, enrollBtn, logoutButton);
+        HBox buttonBox = new HBox(15, startEnrollBtn, backBtn);
         buttonBox.setAlignment(Pos.CENTER);
 
-        VBox layout = new VBox(20, welcomeLabel, statusLabel, webcamView, buttonBox);
-        layout.getStyleClass().add("home-layout");
+        VBox layout = new VBox(20, titleLabel, infoLabel, statusLabel, webcamView, buttonBox);
         layout.setAlignment(Pos.CENTER);
         layout.setPadding(new Insets(20));
 
@@ -266,19 +271,59 @@ public class App extends Application {
         return scene;
     }
 
-    private void startEnrollment(String personName, Label statusLabel) {
+    private void startEnrollmentProcess(String username, ImageView webcamView, Label statusLabel, 
+                                       Button enrollBtn, Button backBtn, Stage stage) {
         capturingMode = true;
-        capturePersonName = personName;
+        capturePersonName = username;
         captureCount = 0;
         
-        File personDir = new File(baseImagePath + personName);
+        File personDir = new File(baseImagePath + username);
         personDir.mkdirs();
         
         Platform.runLater(() -> 
-            statusLabel.setText("Enrolling " + personName + " - Look at camera (0/8 captured)"));
+            statusLabel.setText("Look at the camera - Capturing: 0/8"));
+        
+        startCameraForEnrollment(webcamView, statusLabel, enrollBtn, backBtn, stage);
     }
 
-    private void startCamera(ImageView imageView, Label statusLabel) {
+    private Scene createVerificationScene(Stage stage, String username) {
+        Label titleLabel = new Label("Face Verification");
+        titleLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold;");
+
+        Label infoLabel = new Label("Please look at the camera to verify your identity");
+        infoLabel.setStyle("-fx-font-size: 14px;");
+
+        ImageView webcamView = new ImageView();
+        webcamView.setFitWidth(640);
+        webcamView.setFitHeight(480);
+        webcamView.setPreserveRatio(true);
+
+        Label statusLabel = new Label("Waiting for face detection...");
+        statusLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #0066cc; -fx-font-weight: bold;");
+
+        Button cancelBtn = new Button("Cancel");
+        cancelBtn.getStyleClass().add("btn-logout");
+
+        cancelBtn.setOnAction(e -> {
+            stopCamera();
+            stage.setScene(createLoginScene(stage));
+        });
+
+        VBox layout = new VBox(20, titleLabel, infoLabel, statusLabel, webcamView, cancelBtn);
+        layout.setAlignment(Pos.CENTER);
+        layout.setPadding(new Insets(20));
+
+        Scene scene = new Scene(layout, getScreenWidth(), getScreenHeight());
+        scene.getStylesheets().add(getClass().getResource("/css/home.css").toExternalForm());
+
+        // auto-start camera for verification
+        Platform.runLater(() -> startCameraForVerification(webcamView, statusLabel, stage, username));
+
+        return scene;
+    }
+
+    private void startCameraForEnrollment(ImageView imageView, Label statusLabel, 
+                                         Button enrollBtn, Button backBtn, Stage stage) {
         capture = new VideoCapture(0);
         if (!capture.isOpened()) {
             showAlert("Camera Error", "Cannot open camera!");
@@ -293,58 +338,31 @@ public class App extends Application {
                 Mat gray = new Mat();
                 int frameCounter = 0;
                 
-                while (cameraActive) {
+                while (cameraActive && capturingMode) {
                     if (capture.read(frame)) {
                         currentFrame = frame.clone();
                         Imgproc.cvtColor(currentFrame, gray, Imgproc.COLOR_BGR2GRAY);
                         
-                        // detect faces
                         MatOfRect faces = new MatOfRect();
                         faceDetector.detectMultiScale(gray, faces, 1.1, 3, 0, 
                             new Size(30, 30), new Size());
                         
                         Rect[] faceArray = faces.toArray();
                         
-                        // Process faces
                         for (Rect rect : faceArray) {
-                            if (capturingMode) {
-                                //enrollment mode - capture faces
-                                Imgproc.rectangle(currentFrame, new Point(rect.x, rect.y),
-                                    new Point(rect.x + rect.width, rect.y + rect.height),
-                                    new Scalar(255, 165, 0), 3);
-                                
-                                // capture every 10f
-                                if (frameCounter % 10 == 0 && captureCount < 8) {
-                                    saveFace(gray, rect);
-                                }
-                                
-                                String text = "Capturing: " + captureCount + "/8";
-                                Imgproc.putText(currentFrame, text, 
-                                    new Point(rect.x, rect.y - 10),
-                                    Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, 
-                                    new Scalar(255, 165, 0), 2);
-                            } else {
-                                // recognition mode
-                                Mat face = gray.submat(rect);
-                                Mat resizedFace = new Mat();
-                                Imgproc.resize(face, resizedFace, new Size(200, 200));
-                                
-                                String recognizedName = recognizeFace(resizedFace);
-                                
-                                Scalar color = recognizedName.equals("Unknown") ? 
-                                    new Scalar(0, 0, 255) : new Scalar(0, 255, 0);
-                                
-                                Imgproc.rectangle(currentFrame, new Point(rect.x, rect.y),
-                                    new Point(rect.x + rect.width, rect.y + rect.height),
-                                    color, 3);
-                                
-                                Imgproc.putText(currentFrame, recognizedName, 
-                                    new Point(rect.x, rect.y - 10),
-                                    Imgproc.FONT_HERSHEY_SIMPLEX, 0.9, color, 2);
-                                
-                                resizedFace.release();
-                                face.release();
+                            Imgproc.rectangle(currentFrame, new Point(rect.x, rect.y),
+                                new Point(rect.x + rect.width, rect.y + rect.height),
+                                new Scalar(255, 165, 0), 3);
+                            
+                            if (frameCounter % 15 == 0 && captureCount < 8) {
+                                saveFaceForEnrollment(gray, rect, statusLabel, enrollBtn, backBtn, stage);
                             }
+                            
+                            String text = "Capturing: " + captureCount + "/8";
+                            Imgproc.putText(currentFrame, text, 
+                                new Point(rect.x, rect.y - 10),
+                                Imgproc.FONT_HERSHEY_SIMPLEX, 0.9, 
+                                new Scalar(255, 165, 0), 2);
                         }
                         
                         Image imageToShow = mat2Image(currentFrame);
@@ -371,7 +389,8 @@ public class App extends Application {
         th.start();
     }
 
-    private void saveFace(Mat gray, Rect rect) {
+    private void saveFaceForEnrollment(Mat gray, Rect rect, Label statusLabel, 
+                                      Button enrollBtn, Button backBtn, Stage stage) {
         Mat face = gray.submat(rect);
         Mat resizedFace = new Mat();
         Imgproc.resize(face, resizedFace, new Size(200, 200));
@@ -381,18 +400,27 @@ public class App extends Application {
         Imgcodecs.imwrite(fileName, resizedFace);
         
         captureCount++;
-        System.out.println("Saved face " + captureCount + "/8");
+        Platform.runLater(() -> 
+            statusLabel.setText("Capturing: " + captureCount + "/8"));
         
         if (captureCount >= 8) {
             capturingMode = false;
             captureCount = 0;
             
-            // reload the persons data
             List<Mat> newImages = loadImages(baseImagePath + capturePersonName);
             personHistograms.put(capturePersonName, computeHistograms(newImages));
             
+            stopCamera();
+            
             Platform.runLater(() -> {
-                showAlert("Success", "Successfully enrolled " + capturePersonName + "!");
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle("Enrollment Complete");
+                alert.setHeaderText("Success!");
+                alert.setContentText("Face enrollment completed for " + capturePersonName + 
+                    ". You can now log in with face verification.");
+                alert.showAndWait();
+                
+                stage.setScene(createLoginScene(stage));
             });
         }
         
@@ -400,11 +428,159 @@ public class App extends Application {
         face.release();
     }
 
+    private void startCameraForVerification(ImageView imageView, Label statusLabel, 
+                                           Stage stage, String expectedUsername) {
+        capture = new VideoCapture(0);
+        if (!capture.isOpened()) {
+            showAlert("Camera Error", "Cannot open camera!");
+            Platform.runLater(() -> stage.setScene(createLoginScene(stage)));
+            return;
+        }
+        cameraActive = true;
+
+        Task<Void> frameGrabber = new Task<>() {
+            @Override
+            protected Void call() {
+                Mat frame = new Mat();
+                Mat gray = new Mat();
+                int verificationAttempts = 0;
+                int maxAttempts = 50; // ~1.5 seconds of attempts
+                
+                while (cameraActive && !faceVerified && verificationAttempts < maxAttempts) {
+                    if (capture.read(frame)) {
+                        currentFrame = frame.clone();
+                        Imgproc.cvtColor(currentFrame, gray, Imgproc.COLOR_BGR2GRAY);
+                        
+                        MatOfRect faces = new MatOfRect();
+                        faceDetector.detectMultiScale(gray, faces, 1.1, 3, 0, 
+                            new Size(30, 30), new Size());
+                        
+                        Rect[] faceArray = faces.toArray();
+                        
+                        if (faceArray.length > 0) {
+                            Rect rect = faceArray[0];
+                            Mat face = gray.submat(rect);
+                            Mat resizedFace = new Mat();
+                            Imgproc.resize(face, resizedFace, new Size(200, 200));
+                            
+                            String recognizedName = recognizeFace(resizedFace);
+                            
+                            if (recognizedName.equals(expectedUsername)) {
+                                // SUCCESS - Face matches!
+                                Imgproc.rectangle(currentFrame, new Point(rect.x, rect.y),
+                                    new Point(rect.x + rect.width, rect.y + rect.height),
+                                    new Scalar(0, 255, 0), 3);
+                                
+                                Imgproc.putText(currentFrame, "Verified: " + recognizedName, 
+                                    new Point(rect.x, rect.y - 10),
+                                    Imgproc.FONT_HERSHEY_SIMPLEX, 0.9, 
+                                    new Scalar(0, 255, 0), 2);
+                                
+                                faceVerified = true;
+                                
+                                Platform.runLater(() -> {
+                                    statusLabel.setText("✓ Face Verified! Access Granted");
+                                    statusLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #00cc00; -fx-font-weight: bold;");
+                                });
+                                
+                                try {
+                                    Thread.sleep(1000);
+                                } catch (InterruptedException e) {}
+                                
+                                stopCamera();
+                                Platform.runLater(() -> stage.setScene(createHomeScene(expectedUsername)));
+                                
+                            } else {
+                                // Face doesn't match
+                                Imgproc.rectangle(currentFrame, new Point(rect.x, rect.y),
+                                    new Point(rect.x + rect.width, rect.y + rect.height),
+                                    new Scalar(0, 0, 255), 3);
+                                
+                                String errorText = recognizedName.equals("Unknown") ? 
+                                    "Face Not Recognized" : "Wrong Person: " + recognizedName;
+                                
+                                Imgproc.putText(currentFrame, errorText, 
+                                    new Point(rect.x, rect.y - 10),
+                                    Imgproc.FONT_HERSHEY_SIMPLEX, 0.9, 
+                                    new Scalar(0, 0, 255), 2);
+                                
+                                Platform.runLater(() -> 
+                                    statusLabel.setText("⚠ Face verification failed - try again"));
+                            }
+                            
+                            resizedFace.release();
+                            face.release();
+                            verificationAttempts++;
+                        }
+                        
+                        Image imageToShow = mat2Image(currentFrame);
+                        Platform.runLater(() -> imageView.setImage(imageToShow));
+                    }
+                    
+                    try {
+                        Thread.sleep(33);
+                    } catch (InterruptedException e) {
+                        break;
+                    }
+                }
+                
+                // If verification failed after max attempts
+                if (!faceVerified && verificationAttempts >= maxAttempts) {
+                    stopCamera();
+                    Platform.runLater(() -> {
+                        Alert alert = new Alert(Alert.AlertType.ERROR);
+                        alert.setTitle("Verification Failed");
+                        alert.setHeaderText("Face Verification Failed");
+                        alert.setContentText("Your face does not match the enrolled data for " + 
+                            expectedUsername + ". Access denied.");
+                        alert.showAndWait();
+                        stage.setScene(createLoginScene(stage));
+                    });
+                }
+                
+                frame.release();
+                gray.release();
+                return null;
+            }
+        };
+
+        Thread th = new Thread(frameGrabber);
+        th.setDaemon(true);
+        th.start();
+    }
+
+    private Scene createHomeScene(String username) {
+        Label welcomeLabel = new Label("✓ Access Granted - Welcome, " + username + "!");
+        welcomeLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #00cc00;");
+
+        Label infoLabel = new Label("Face verification successful. You are now logged in.");
+        infoLabel.setStyle("-fx-font-size: 14px;");
+
+        Button logoutButton = new Button("Logout");
+        logoutButton.getStyleClass().add("btn-logout");
+
+        logoutButton.setOnAction(e -> {
+            loggedInUsername = "";
+            faceVerified = false;
+            Stage stage = (Stage) logoutButton.getScene().getWindow();
+            stage.setScene(createLoginScene(stage));
+        });
+
+        VBox layout = new VBox(30, welcomeLabel, infoLabel, logoutButton);
+        layout.setAlignment(Pos.CENTER);
+        layout.setPadding(new Insets(50));
+
+        Scene scene = new Scene(layout, getScreenWidth(), getScreenHeight());
+        scene.getStylesheets().add(getClass().getResource("/css/home.css").toExternalForm());
+
+        return scene;
+    }
+
     private String recognizeFace(Mat face) {
         Mat faceHist = computeHistogram(face);
         
         String bestMatch = "Unknown";
-        double bestScore = 0.7; // threshold
+        double bestScore = 0.7; // threshold for recognition
         
         for (Map.Entry<String, List<Mat>> entry : personHistograms.entrySet()) {
             double score = getBestHistogramScore(faceHist, entry.getValue());
@@ -430,7 +606,6 @@ public class App extends Application {
     private void stopCamera() {
         cameraActive = false;
         capturingMode = false;
-        captureCount = 0;
         if (capture != null && capture.isOpened()) {
             capture.release();
         }
@@ -449,7 +624,7 @@ public class App extends Application {
 
     private void showAlert(String title, String message) {
         Platform.runLater(() -> {
-            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            Alert alert = new Alert(Alert.AlertType.ERROR);
             alert.setTitle(title);
             alert.setHeaderText(null);
             alert.setContentText(message);
