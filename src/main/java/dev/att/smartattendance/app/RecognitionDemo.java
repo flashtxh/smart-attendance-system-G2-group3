@@ -4,14 +4,17 @@ import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.objdetect.CascadeClassifier;
-import org.opencv.utils.Converters;
 import org.opencv.videoio.VideoCapture;
+import org.opencv.dnn.*;
+import ai.onnxruntime.*;
 
 import javax.swing.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class RecognitionDemo {
     static {
@@ -24,25 +27,22 @@ public class RecognitionDemo {
         //     System.out.println("Usage: java FaceRecognitionDemo <person1-dir> <person2-dir> <haarcascade-path>");
         //     System.out.println("Example: java FaceRecognitionDemo D:\\person1 D:\\person2 .\\haarcascade_frontalface_alt.xml");
         //     return;
-        // }
+                // }
+        String maskModelPath = "src\\main\\resources\\models\\mask_detector.onnx";
+        Net maskNet = Dnn.readNetFromONNX(maskModelPath);
+        System.out.println("Mask detection model loaded: " + !maskNet.empty());
 
         String person1Dir = "src\\main\\resources\\images\\person1"; // args[0];
         String person2Dir = "src\\main\\resources\\images\\person2"; // args[1];
         // String cascadePath = "src\\main\\resources\\fxml\\haarcascade_frontalface_alt.xml"; // args[2];
         
-
         // Load face detector
         CascadeClassifier faceDetector = new CascadeClassifier();
-        CascadeClassifier mouthCascade = new CascadeClassifier();
-
         if(!faceDetector.load("src\\main\\resources\\fxml\\haarcascade_frontalface_alt.xml")) {
             System.out.println("Could not load face xml");
             return;
         }
-        if(!mouthCascade.load("src\\main\\resources\\fxml\\Mouth.xml")) {
-            System.out.println("Could not load mouth xml");
-            return;
-        }
+
 
         Scalar green = new Scalar(0,128,0);
         Scalar red = new Scalar(0,0,255);
@@ -74,6 +74,18 @@ public class RecognitionDemo {
         frame.setVisible(true);
 
         Mat webcamFrame = new Mat();
+
+        OrtEnvironment env = null;
+        OrtSession session = null;
+        try {
+            env = OrtEnvironment.getEnvironment();
+            OrtSession.SessionOptions opts = new OrtSession.SessionOptions();
+            session = env.createSession("src\\main\\resources\\models\\mask_detector.onnx", opts);
+        } catch (OrtException e) {
+            System.err.println("ONNX initialization failed: " + e.getMessage());
+            return;
+        }
+
         while (frame.isVisible() && capture.read(webcamFrame)) {
 
             Mat gray = new Mat();
@@ -85,21 +97,31 @@ public class RecognitionDemo {
 
             for (Rect rect : faces.toArray()) {
 
-                // Mat faceGray = gray.submat(rect);
-                // Mouth Detection
-                Rect mouthROIrect = new Rect(
-                    rect.x,
-                    rect.y + (int)(rect.height * 0.55),
-                    rect.width,
-                    (int)(rect.height * 0.45)
-                );
+                //Mask Detection via ONNX model
+                Mat faceROI = new Mat(webcamFrame, rect);
+                Mat resized = new Mat();
+                Imgproc.cvtColor(faceROI, resized, Imgproc.COLOR_BGR2RGB);
+                Imgproc.resize(resized, resized, new Size(224, 224));
 
+                resized.convertTo(resized, CvType.CV_32FC3, 1.0/255.0);
+                int width = 224, height = 224, channels = 3;
+                float[] nhwc = new float[width * height * channels];
+                resized.get(0,0, nhwc);
+                
                 boolean maskDetected = false;
-                if(mouthROIrect.y + mouthROIrect.height <= gray.rows()) {
-                    Mat mouthROI = gray.submat(mouthROIrect);
-                    MatOfRect mouths = new MatOfRect();
-                    mouthCascade.detectMultiScale(mouthROI, mouths, 1.5, 5, 0, new Size(25, 15), new Size());
-                    maskDetected = (mouths.toArray().length == 0);
+
+                // Purpose of placing these in the try block is for automatic cleanup.
+                try(
+                    OnnxTensor inputTensor = OnnxTensor.createTensor(env, FloatBuffer.wrap(nhwc), new long[]{1, height, width, channels}); 
+                    // Runs the model
+                    OrtSession.Result result = session.run(Map.of(session.getInputNames().iterator().next(), inputTensor))
+                ) {
+                    float[][] probs = (float[][]) result.get(0).getValue();
+                    maskDetected = probs[0][0] > probs[0][1];
+                } catch (OrtException e) {
+                    if (e.getMessage() == null || !e.getMessage().contains("DefaultLogger")) {
+                        e.printStackTrace();
+                    }
                 }
 
                 if(maskDetected) {
