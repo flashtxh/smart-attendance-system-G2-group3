@@ -64,8 +64,7 @@ public class App extends Application {
     }
 
     public static void main(String[] args) {
-        // launch();
-        // CropDemo.main(args);
+        launch();
         // RecognitionDemo.main(args);
 
         // ProfessorDAO pdao = new ProfessorDAO();
@@ -107,9 +106,9 @@ public class App extends Application {
         // load existing persons
         loadExistingPersons();
         
-        Scene loginScene = createLoginScene(primaryStage);
+        // Scene loginScene = createLoginScene(primaryStage);
         primaryStage.setTitle("Smart Attendance System");
-        primaryStage.setScene(loginScene);
+        primaryStage.setScene(createDirectEnrollmentScene(primaryStage));
         primaryStage.show();
         
         primaryStage.setOnCloseRequest(e -> {
@@ -117,6 +116,107 @@ public class App extends Application {
             System.exit(0);
         });
     }
+
+
+    //Uses startEnrollmentProcess and startCameraForEnrollment (new)
+    private Scene createDirectEnrollmentScene(Stage stage) {
+        Label titleLabel = new Label("Face Enrollment - Professor Mode");
+        titleLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold;");
+
+        Label infoLabel = new Label("Enter student details below and click 'Start Enrollment' to begin auto face capture.");
+        infoLabel.setWrapText(true);
+        infoLabel.setStyle("-fx-font-size: 14px;");
+
+        TextField emailField = new TextField();
+        emailField.setPromptText("Student Email");
+        emailField.setPrefWidth(300);
+
+        HBox inputBox = new HBox(10,
+                new Label("Email:"), emailField);
+        inputBox.setAlignment(Pos.CENTER);
+
+        // --- Webcam + status UI ---
+        ImageView webcamView = new ImageView();
+        webcamView.setFitWidth(640);
+        webcamView.setFitHeight(480);
+        webcamView.setPreserveRatio(true);
+
+        Label statusLabel = new Label("Waiting for input...");
+        statusLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #0066cc; -fx-font-weight: bold;");
+
+        Button startBtn = new Button("Start Enrollment");
+        startBtn.getStyleClass().add("btn-togglecam");
+
+        Button backBtn = new Button("Back to Login");
+        backBtn.getStyleClass().add("btn-logout");
+
+        backBtn.setOnAction(e -> {
+            stopCamera();
+            stage.setScene(createLoginScene(stage));
+        });
+
+        // --- Start enrollment logic ---
+        startBtn.setOnAction(e -> {
+            String studentEmail = emailField.getText().strip();
+
+            if (studentEmail.isEmpty()) {
+                showAlert("Input Required", "Please enter the student's email before starting enrollment.");
+                return;
+            }
+
+            if (!cameraActive) {
+                statusLabel.setText("Initializing camera...");
+                // reuse existing enrollment logic
+                startEnrollmentProcess(studentEmail, webcamView, statusLabel, startBtn, backBtn, stage);
+                startBtn.setDisable(true);
+            }
+        });
+
+        HBox buttonBox = new HBox(15, startBtn, backBtn);
+        buttonBox.setAlignment(Pos.CENTER);
+
+        VBox layout = new VBox(20, titleLabel, infoLabel, inputBox, statusLabel, webcamView, buttonBox);
+        layout.setAlignment(Pos.CENTER);
+        layout.setPadding(new Insets(20));
+
+        Scene scene = new Scene(layout, getScreenWidth(), getScreenHeight());
+        scene.getStylesheets().add(getClass().getResource("/css/home.css").toExternalForm());
+
+        return scene;
+    }
+
+    private void startCameraForEnrollment(ImageView imageView, Label statusLabel, Button enrollBtn, Button backBtn, Stage stage) {
+        AutoCapture.runAutoCapture(
+            capturePersonName,
+            baseImagePath,
+            faceDetector,
+            imageView,
+            statusLabel,
+            count -> {
+                // called when done
+                if (count >= 20) {
+                    List<Mat> newImages = loadImages(baseImagePath + capturePersonName);
+                    personHistograms.put(capturePersonName, computeHistograms(newImages));
+                    Platform.runLater(() -> {
+                        showAlert("Enrollment Complete",
+                                "Successfully captured " + count + " images for " + capturePersonName);
+                        stage.setScene(createLoginScene(stage));
+                    });
+                } else {
+                    Platform.runLater(() ->
+                            showAlert("Enrollment Incomplete", "Only captured " + count + " images."));
+                }
+            }
+        );
+    }
+
+
+    //GAP
+
+
+
+
+
 
     private void initializeCredentials() {
         // sample credentials - in production, load from database
@@ -307,7 +407,7 @@ public class App extends Application {
         personDir.mkdirs();
         
         Platform.runLater(() -> 
-            statusLabel.setText("Look at the camera - Capturing: 0/8"));
+            statusLabel.setText("Look at the camera"));
         
         startCameraForEnrollment(webcamView, statusLabel, enrollBtn, backBtn, stage);
     }
@@ -348,8 +448,7 @@ public class App extends Application {
         return scene;
     }
 
-    private void startCameraForEnrollment(ImageView imageView, Label statusLabel, 
-                                         Button enrollBtn, Button backBtn, Stage stage) {
+    private void startCameraForEnrollmentOriginal(ImageView imageView, Label statusLabel, Button enrollBtn, Button backBtn, Stage stage) {
         capture = new VideoCapture(0);
         if (!capture.isOpened()) {
             showAlert("Camera Error", "Cannot open camera!");
