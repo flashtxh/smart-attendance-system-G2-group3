@@ -117,6 +117,44 @@ public class App extends Application {
         });
     }
 
+    private Scene createMenuScene(Stage stage) {
+        Label welcomeLabel = new Label("Welcome, " + loggedInUsername + "!");
+        welcomeLabel.getStyleClass().add("menu-title");
+
+        Label instructionLabel = new Label("Choose an option below:");
+        instructionLabel.getStyleClass().add("menu-label");
+
+        Button registerButton = new Button("Register New Student");
+        registerButton.getStyleClass().add("menu-button");
+        registerButton.setOnAction(e -> {
+            stopCamera();
+            stage.setScene(createDirectEnrollmentScene(stage));
+        });
+
+        Button homeButton = new Button("Go to Home Page");
+        homeButton.getStyleClass().add("menu-button");
+        homeButton.setOnAction(e -> {
+            stopCamera();
+            stage.setScene(createHomeScene(loggedInUsername));
+        });
+
+        Button logoutButton = new Button("Logout");
+        logoutButton.getStyleClass().add("menu-button");
+        logoutButton.setOnAction(e -> {
+            stopCamera();
+            loggedInUsername = "";
+            stage.setScene(createLoginScene(stage));
+        });
+
+        VBox layout = new VBox(20, welcomeLabel, instructionLabel, registerButton, homeButton, logoutButton);
+        layout.setAlignment(Pos.CENTER);
+        layout.setPadding(new Insets(30));
+
+        Scene scene = new Scene(layout, getScreenWidth(), getScreenHeight());
+        scene.getStylesheets().add(getClass().getResource("/css/home.css").toExternalForm());
+        return scene;
+    }
+
 
     //Uses startEnrollmentProcess and startCameraForEnrollment (new)
     private Scene createDirectEnrollmentScene(Stage stage) {
@@ -135,7 +173,6 @@ public class App extends Application {
                 new Label("Email:"), emailField);
         inputBox.setAlignment(Pos.CENTER);
 
-        // --- Webcam + status UI ---
         ImageView webcamView = new ImageView();
         webcamView.setFitWidth(640);
         webcamView.setFitHeight(480);
@@ -147,15 +184,14 @@ public class App extends Application {
         Button startBtn = new Button("Start Enrollment");
         startBtn.getStyleClass().add("btn-togglecam");
 
-        Button backBtn = new Button("Back to Login");
+        Button backBtn = new Button("Back to Menu");
         backBtn.getStyleClass().add("btn-logout");
 
         backBtn.setOnAction(e -> {
             stopCamera();
-            stage.setScene(createLoginScene(stage));
+            stage.setScene(createMenuScene(stage));
         });
 
-        // --- Start enrollment logic ---
         startBtn.setOnAction(e -> {
             String studentEmail = emailField.getText().strip();
             StudentDAO sdao = new StudentDAO();
@@ -167,14 +203,13 @@ public class App extends Application {
             Student existing = sdao.get_student_by_email(studentEmail);
             if(existing != null) {
                 showAlert("Email in use", "This email is already enrolled!");
+            } else {
+                if (!cameraActive) {
+                    statusLabel.setText("Initializing camera...");
+                    startEnrollmentProcess(studentEmail, webcamView, statusLabel, startBtn, backBtn, stage);
+                    startBtn.setDisable(true);
+                }
             }
-
-            if (!cameraActive) {
-                statusLabel.setText("Initializing camera...");
-                startEnrollmentProcess(studentEmail, webcamView, statusLabel, startBtn, backBtn, stage);
-                startBtn.setDisable(true);
-            }
-
         });
 
         HBox buttonBox = new HBox(15, startBtn, backBtn);
@@ -219,11 +254,11 @@ public class App extends Application {
                     Platform.runLater(() -> {
                         showAlert("Enrollment Complete",
                                 "Successfully captured " + count + " images for " + capturePersonName);
-                        stage.setScene(createLoginScene(stage));
+                        stage.setScene(createMenuScene(stage));
                     });
                 } else {
                     Platform.runLater(() ->
-                            showAlert("Enrollment Incomplete", "Only captured " + count + " images."));
+                        showAlert("Enrollment Incomplete", "Only captured " + count + " images."));
                 }
             }
         );
@@ -261,7 +296,7 @@ public class App extends Application {
                 userCredentials.get(username).equals(password)) {
                 
                 loggedInUsername = username;
-                stage.setScene(createDirectEnrollmentScene(stage));
+                stage.setScene(createMenuScene(stage));
             } else {
                 messageLabel.setText("Invalid username or password");
             }
@@ -276,6 +311,50 @@ public class App extends Application {
         return scene;
     }
 
+    private Scene createHomeScene(String username) {
+        Label welcomeLabel = new Label("✓ Access Granted - Welcome, " + username + "!");
+        welcomeLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #00cc00;");
+
+        Label statusLabel = new Label("Camera Active - Monitoring");
+        statusLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #0066cc;");
+
+        ImageView webcamView = new ImageView();
+        webcamView.setFitWidth(640);
+        webcamView.setFitHeight(480);
+        webcamView.setPreserveRatio(true);
+
+        Button backBtn = new Button("Back to Menu");
+        backBtn.getStyleClass().add("btn-logout");
+
+        backBtn.setOnAction(e -> {
+            stopCamera();
+            Stage stage = (Stage) backBtn.getScene().getWindow();
+            stage.setScene(createMenuScene(stage));
+        });
+
+        Button logoutButton = new Button("Logout");
+        logoutButton.getStyleClass().add("btn-logout");
+
+        logoutButton.setOnAction(e -> {
+            stopCamera();
+            loggedInUsername = "";
+            faceVerified = false;
+            Stage stage = (Stage) logoutButton.getScene().getWindow();
+            stage.setScene(createLoginScene(stage));
+        });
+
+        VBox layout = new VBox(20, welcomeLabel, statusLabel, webcamView, backBtn, logoutButton);
+        layout.setAlignment(Pos.CENTER);
+        layout.setPadding(new Insets(20));
+
+        Scene scene = new Scene(layout, getScreenWidth(), getScreenHeight());
+        scene.getStylesheets().add(getClass().getResource("/css/home.css").toExternalForm());
+
+        // auto-start camera in home scene
+        Platform.runLater(() -> startCameraInHomeScene(webcamView, statusLabel, username));
+
+        return scene;
+    }
 
     //GAP
 
@@ -352,15 +431,15 @@ public class App extends Application {
 
     private double getScreenWidth() {
         Rectangle2D screenBounds = Screen.getPrimary().getVisualBounds();
-        return screenBounds.getWidth() * 0.6;
+        return screenBounds.getWidth() * 0.8;
     }
 
     private double getScreenHeight() {
         Rectangle2D screenBounds = Screen.getPrimary().getVisualBounds();
-        return screenBounds.getHeight() * 0.7;
+        return screenBounds.getHeight() * 0.8;
     }
 
-    private Scene createLoginScene_original(Stage stage) {
+    private Scene createLoginSceneOriginal(Stage stage) {
         Label titleLabel = new Label("Smart Attendance Login");
         titleLabel.getStyleClass().add("title");
 
@@ -723,42 +802,6 @@ public class App extends Application {
         Thread th = new Thread(frameGrabber);
         th.setDaemon(true);
         th.start();
-    }
-
-    private Scene createHomeScene(String username) {
-        Label welcomeLabel = new Label("✓ Access Granted - Welcome, " + username + "!");
-        welcomeLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #00cc00;");
-
-        Label statusLabel = new Label("Camera Active - Monitoring");
-        statusLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #0066cc;");
-
-        ImageView webcamView = new ImageView();
-        webcamView.setFitWidth(640);
-        webcamView.setFitHeight(480);
-        webcamView.setPreserveRatio(true);
-
-        Button logoutButton = new Button("Logout");
-        logoutButton.getStyleClass().add("btn-logout");
-
-        logoutButton.setOnAction(e -> {
-            stopCamera();
-            loggedInUsername = "";
-            faceVerified = false;
-            Stage stage = (Stage) logoutButton.getScene().getWindow();
-            stage.setScene(createLoginScene(stage));
-        });
-
-        VBox layout = new VBox(20, welcomeLabel, statusLabel, webcamView, logoutButton);
-        layout.setAlignment(Pos.CENTER);
-        layout.setPadding(new Insets(20));
-
-        Scene scene = new Scene(layout, getScreenWidth(), getScreenHeight());
-        scene.getStylesheets().add(getClass().getResource("/css/home.css").toExternalForm());
-
-        // auto-start camera in home scene
-        Platform.runLater(() -> startCameraInHomeScene(webcamView, statusLabel, username));
-
-        return scene;
     }
 
     private void startCameraInHomeScene(ImageView imageView, Label statusLabel, String username) {

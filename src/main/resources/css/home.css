@@ -53,3 +53,36 @@
     -fx-text-fill: #4b2e14;
     -fx-border-color: #4b2e14;
 }
+
+.menu-root {
+    -fx-background-color: linear-gradient(to bottom right, #EFEBE9, #D7CCC8);
+    -fx-padding: 40;
+    -fx-alignment: center;
+}
+
+.menu-title {
+    -fx-font-size: 30px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #3E2723;
+}
+
+.menu-label {
+    -fx-font-size: 18px;
+    -fx-text-fill: #5D4037;
+}
+
+.menu-button {
+    -fx-pref-width: 250;
+    -fx-pref-height: 45;
+    -fx-background-color: linear-gradient(to bottom, #795548, #5D4037);
+    -fx-text-fill: white;
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-background-radius: 30;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.25), 6, 0.3, 0, 2);
+    -fx-cursor: hand;
+}
+
+.menu-button:hover {
+    -fx-background-color: linear-gradient(to bottom, #8D6E63, #6D4C41);
+}
