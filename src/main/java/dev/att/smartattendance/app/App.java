@@ -108,7 +108,7 @@ public class App extends Application {
         
         // Scene loginScene = createLoginScene(primaryStage);
         primaryStage.setTitle("Smart Attendance System");
-        primaryStage.setScene(createDirectEnrollmentScene(primaryStage));
+        primaryStage.setScene(createLoginScene(primaryStage));
         primaryStage.show();
         
         primaryStage.setOnCloseRequest(e -> {
@@ -158,18 +158,23 @@ public class App extends Application {
         // --- Start enrollment logic ---
         startBtn.setOnAction(e -> {
             String studentEmail = emailField.getText().strip();
-
+            StudentDAO sdao = new StudentDAO();
             if (studentEmail.isEmpty()) {
                 showAlert("Input Required", "Please enter the student's email before starting enrollment.");
                 return;
             }
 
+            Student existing = sdao.get_student_by_email(studentEmail);
+            if(existing != null) {
+                showAlert("Email in use", "This email is already enrolled!");
+            }
+
             if (!cameraActive) {
                 statusLabel.setText("Initializing camera...");
-                // reuse existing enrollment logic
                 startEnrollmentProcess(studentEmail, webcamView, statusLabel, startBtn, backBtn, stage);
                 startBtn.setDisable(true);
             }
+
         });
 
         HBox buttonBox = new HBox(15, startBtn, backBtn);
@@ -183,6 +188,20 @@ public class App extends Application {
         scene.getStylesheets().add(getClass().getResource("/css/home.css").toExternalForm());
 
         return scene;
+    }
+
+    private void startEnrollmentProcess(String username, ImageView webcamView, Label statusLabel, Button enrollBtn, Button backBtn, Stage stage) {
+        capturingMode = true;
+        capturePersonName = username;
+        captureCount = 0;
+        
+        File personDir = new File(baseImagePath + username);
+        personDir.mkdirs();
+        
+        Platform.runLater(() -> 
+            statusLabel.setText("Look at the camera"));
+        
+        startCameraForEnrollment(webcamView, statusLabel, enrollBtn, backBtn, stage);
     }
 
     private void startCameraForEnrollment(ImageView imageView, Label statusLabel, Button enrollBtn, Button backBtn, Stage stage) {
@@ -208,6 +227,53 @@ public class App extends Application {
                 }
             }
         );
+    }
+
+    private Scene createLoginScene(Stage stage) {
+        Label titleLabel = new Label("Smart Attendance Login");
+        titleLabel.getStyleClass().add("title");
+
+        TextField usernameField = new TextField();
+        usernameField.setPromptText("Username");
+        usernameField.getStyleClass().add("text-field");
+
+        PasswordField passwordField = new PasswordField();
+        passwordField.setPromptText("Password");
+        passwordField.getStyleClass().add("password-field");
+
+        Button loginButton = new Button("Login");
+        loginButton.getStyleClass().add("button");
+
+        Label messageLabel = new Label();
+        messageLabel.getStyleClass().add("error");
+
+        loginButton.setOnAction(e -> {
+            String username = usernameField.getText().strip();
+            String password = passwordField.getText().strip();
+
+            if (username.isEmpty() || password.isEmpty()) {
+                messageLabel.setText("Please enter both username and password");
+                return;
+            }
+
+            // check credentials
+            if (userCredentials.containsKey(username) && 
+                userCredentials.get(username).equals(password)) {
+                
+                loggedInUsername = username;
+                stage.setScene(createDirectEnrollmentScene(stage));
+            } else {
+                messageLabel.setText("Invalid username or password");
+            }
+        });
+
+        VBox layout = new VBox(25, titleLabel, usernameField, passwordField, loginButton, messageLabel);
+        layout.getStyleClass().add("vbox");
+
+        Scene scene = new Scene(layout, getScreenWidth(), getScreenHeight());
+        scene.getStylesheets().add(getClass().getResource("/css/login.css").toExternalForm());
+
+        return scene;
     }
 
 
@@ -294,7 +360,7 @@ public class App extends Application {
         return screenBounds.getHeight() * 0.7;
     }
 
-    private Scene createLoginScene(Stage stage) {
+    private Scene createLoginScene_original(Stage stage) {
         Label titleLabel = new Label("Smart Attendance Login");
         titleLabel.getStyleClass().add("title");
 
@@ -395,21 +461,6 @@ public class App extends Application {
         scene.getStylesheets().add(getClass().getResource("/css/home.css").toExternalForm());
 
         return scene;
-    }
-
-    private void startEnrollmentProcess(String username, ImageView webcamView, Label statusLabel, 
-                                       Button enrollBtn, Button backBtn, Stage stage) {
-        capturingMode = true;
-        capturePersonName = username;
-        captureCount = 0;
-        
-        File personDir = new File(baseImagePath + username);
-        personDir.mkdirs();
-        
-        Platform.runLater(() -> 
-            statusLabel.setText("Look at the camera"));
-        
-        startCameraForEnrollment(webcamView, statusLabel, enrollBtn, backBtn, stage);
     }
 
     private Scene createVerificationScene(Stage stage, String username) {

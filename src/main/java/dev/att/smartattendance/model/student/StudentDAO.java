@@ -26,6 +26,27 @@ public class StudentDAO {
         }
     }
 
+    public Student get_student_by_email(String email) {
+        String sql = "select * from students where email = ?";
+        try (
+            Connection conn = DatabaseManager.getConnection();
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+        ) {
+            pstmt.setString(1, email);
+            ResultSet rs = pstmt.executeQuery();
+            if(rs.next()) {
+                return new Student(
+                    rs.getString("student_id"),
+                    rs.getString("name"),
+                    rs.getString("email")
+                );
+            }
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
+        }
+        return null;
+    }
+
     public List<Student> get_all_students() {
         List<Student> students = new ArrayList<>();
         String sql = "select * from students";
