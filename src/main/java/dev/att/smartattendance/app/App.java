@@ -2,6 +2,7 @@ package dev.att.smartattendance.app;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -14,6 +15,10 @@ import org.opencv.imgproc.Imgproc;
 import org.opencv.objdetect.CascadeClassifier;
 import org.opencv.videoio.VideoCapture;
 
+import ai.onnxruntime.OnnxTensor;
+import ai.onnxruntime.OrtEnvironment;
+import ai.onnxruntime.OrtException;
+import ai.onnxruntime.OrtSession;
 import dev.att.smartattendance.model.course.CourseDAO;
 import dev.att.smartattendance.model.facedata.FaceDataDAO;
 import dev.att.smartattendance.model.group.GroupDAO;
@@ -354,6 +359,116 @@ public class App extends Application {
         Platform.runLater(() -> startCameraInHomeScene(webcamView, statusLabel, username));
 
         return scene;
+    }
+
+    private void startCameraInHomeScene(ImageView imageView, Label statusLabel, String username) {
+        capture = new VideoCapture(0);
+        if (!capture.isOpened()) {
+            statusLabel.setText("Camera unavailable");
+            return;
+        }
+        cameraActive = true;
+
+        // ====== Load ONNX Mask Detection Model ======
+        OrtEnvironment env;
+        OrtSession session;
+        try {
+            env = OrtEnvironment.getEnvironment();
+            OrtSession.SessionOptions opts = new OrtSession.SessionOptions();
+            session = env.createSession("src/main/resources/models/mask_detector.onnx", opts);
+            System.out.println("✅ Mask detector model loaded.");
+        } catch (OrtException e) {
+            e.printStackTrace();
+            statusLabel.setText("Failed to load mask detection model");
+            return;
+        }
+
+        Scalar green = new Scalar(0, 255, 0);
+        Scalar red = new Scalar(0, 0, 255);
+        Scalar orange = new Scalar(0, 165, 255);
+
+        Task<Void> frameGrabber = new Task<>() {
+            @Override
+            protected Void call() {
+                Mat frame = new Mat();
+                Mat gray = new Mat();
+
+                while (cameraActive) {
+                    if (capture.read(frame)) {
+                        currentFrame = frame.clone();
+                        Imgproc.cvtColor(currentFrame, gray, Imgproc.COLOR_BGR2GRAY);
+
+                        MatOfRect faces = new MatOfRect();
+                        faceDetector.detectMultiScale(gray, faces, 1.1, 3, 0, new Size(30, 30), new Size());
+
+                        for (Rect rect : faces.toArray()) {
+                            // Extract region of interest for mask detection
+                            Mat faceROI = new Mat(frame, rect);
+                            Mat resized = new Mat();
+                            Imgproc.cvtColor(faceROI, resized, Imgproc.COLOR_BGR2RGB);
+                            Imgproc.resize(resized, resized, new Size(224, 224));
+                            resized.convertTo(resized, CvType.CV_32FC3, 1.0 / 255.0);
+
+                            float[] nhwc = new float[224 * 224 * 3];
+                            resized.get(0, 0, nhwc);
+                            boolean maskDetected = false;
+
+                            try (OnnxTensor inputTensor = OnnxTensor.createTensor(env, FloatBuffer.wrap(nhwc), new long[]{1, 224, 224, 3});
+                                OrtSession.Result result = session.run(Map.of(session.getInputNames().iterator().next(), inputTensor))) {
+                                float[][] probs = (float[][]) result.get(0).getValue();
+                                maskDetected = probs[0][0] > probs[0][1];
+                            } catch (OrtException e) {
+                                e.printStackTrace();
+                            }
+
+                            if (maskDetected) {
+                                Imgproc.rectangle(currentFrame, rect.tl(), rect.br(), red, 2);
+                                Imgproc.putText(currentFrame, "Mask Detected", new Point(rect.x, rect.y - 10),
+                                        Imgproc.FONT_HERSHEY_SIMPLEX, 0.8, red, 2);
+                            } else {
+                                // perform recognition only if no mask
+                                Mat face = gray.submat(rect);
+                                Mat resizedFace = new Mat();
+                                Imgproc.resize(face, resizedFace, new Size(200, 200));
+                                String recognizedName = recognizeFace(resizedFace);
+
+                                Scalar color = recognizedName.equals("Unknown") ? orange : green;
+                                String labelText = recognizedName.equals("Unknown")
+                                        ? "Unknown"
+                                        : "Recognized: " + recognizedName;
+
+                                Imgproc.rectangle(currentFrame, rect.tl(), rect.br(), color, 2);
+                                Imgproc.putText(currentFrame, labelText, new Point(rect.x, rect.y - 10),
+                                        Imgproc.FONT_HERSHEY_SIMPLEX, 0.8, color, 2);
+
+                                resizedFace.release();
+                                face.release();
+                            }
+                            resized.release();
+                            faceROI.release();
+                        }
+
+                        Image imageToShow = mat2Image(currentFrame);
+                        Platform.runLater(() -> imageView.setImage(imageToShow));
+                    }
+
+                    try {
+                        Thread.sleep(33);
+                    } catch (InterruptedException e) {
+                        break;
+                    }
+                }
+
+                frame.release();
+                gray.release();
+                // session.close();
+                return null;
+            }
+        };
+
+        Thread th = new Thread(frameGrabber);
+        th.setDaemon(true);
+        th.start();
     }
 
     //GAP
@@ -804,7 +919,7 @@ public class App extends Application {
         th.start();
     }
 
-    private void startCameraInHomeScene(ImageView imageView, Label statusLabel, String username) {
+    private void startCameraInHomeSceneOriginal(ImageView imageView, Label statusLabel, String username) {
         capture = new VideoCapture(0);
         if (!capture.isOpened()) {
             statusLabel.setText("Camera unavailable");
