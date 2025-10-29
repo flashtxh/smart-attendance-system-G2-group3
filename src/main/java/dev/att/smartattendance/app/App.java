@@ -419,7 +419,7 @@ public class App extends Application {
                     }
 
                     try {
-                        Thread.sleep(33);
+                        Thread.sleep(3);
                     } catch (InterruptedException e) {
                         break;
                     }
