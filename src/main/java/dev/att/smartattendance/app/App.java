@@ -41,6 +41,14 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 
+import javafx.scene.control.ScrollPane;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
+
+import javafx.scene.control.CheckBox;
+
+import javafx.scene.control.ComboBox;
+
 public class App extends Application {
 
     private VideoCapture capture;
