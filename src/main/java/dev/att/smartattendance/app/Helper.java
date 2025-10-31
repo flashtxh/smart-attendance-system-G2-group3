@@ -2,8 +2,10 @@ package dev.att.smartattendance.app;
 
 import java.io.ByteArrayInputStream;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfByte;
@@ -19,47 +21,50 @@ import javafx.scene.image.Image;
 import javafx.stage.Screen;
 
 public class Helper {
-
+    // Camera and detection
+    public static VideoCapture capture;
+    public static volatile boolean cameraActive = false;
+    public static CascadeClassifier faceDetector;
+    public static Mat currentFrame;
+    
+    // Face recognition data
+    public static Map<String, List<Mat>> personHistograms = new HashMap<>();
+    public static Map<String, String> userCredentials = new HashMap<>();
+    
+    // Enrollment
+    public static int captureCount = 0;
     public static String capturePersonName = "";
     public static boolean capturingMode = false;
-    public static boolean cameraActive = false;
-    public static VideoCapture capture;
-    public static Mat currentFrame;
-    public static CascadeClassifier faceDetector;
+    
+    // Authentication
     public static String loggedInUsername = "";
     public static boolean faceVerified = false;
-    public static Map<String, String> userCredentials = new HashMap<>(); // username -> password
-    public static Map<String, List<Mat>> personHistograms = new HashMap<>();
+    
+    // Attendance tracking
+    public static Set<String> markedStudentsToday = new HashSet<>();
+    
+    // Paths
     public static String baseImagePath = "src/main/resources/images/";
-    public static int captureCount = 0;
+    public static String cascadePath = "src/main/resources/fxml/haarcascade_frontalface_alt.xml";
+    
 
-    public static void showAlert(String title, String message) {
-        Platform.runLater(() -> {
-            Alert alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setTitle(title);
-            alert.setHeaderText(null);
-            alert.setContentText(message);
-            alert.showAndWait();
-        });
-    }
+     // Get screen width
 
     public static double getScreenWidth() {
         Rectangle2D screenBounds = Screen.getPrimary().getVisualBounds();
-        return screenBounds.getWidth() * 0.8;
+        return screenBounds.getWidth();
     }
+    
+
+     // Get screen height
 
     public static double getScreenHeight() {
         Rectangle2D screenBounds = Screen.getPrimary().getVisualBounds();
-        return screenBounds.getHeight() * 0.7;
+        return screenBounds.getHeight();
     }
+    
 
-    public static void stopCamera() {
-        cameraActive = false;
-        capturingMode = false;
-        if (capture != null && capture.isOpened()) {
-            capture.release();
-        }
-    }
+     // Convert OpenCV Mat to JavaFX Image
 
     public static Image mat2Image(Mat frame) {
         try {
@@ -70,65 +75,35 @@ public class Helper {
             System.err.println("Cannot convert Mat object: " + e);
             return null;
         }
-        // System.out.println("mat2Image called");
-
-        // if (frame == null) {
-        //     System.out.println("⚠️ frame is null");
-        //     return null;
-        // }
-
-        // if (frame.empty()) {
-        //     System.out.println("⚠️ frame is empty");
-        //     return null;
-        // }
-
-        // System.out.println("Frame channels: " + frame.channels() + ", type: " + frame.type());
-
-        // try {
-        //     // Convert to BGRA (4 channels)
-        //     Mat converted = new Mat();
-        //     if (frame.channels() == 1) {
-        //         System.out.println("Converting grayscale to BGRA...");
-        //         Imgproc.cvtColor(frame, converted, Imgproc.COLOR_GRAY2BGRA);
-        //     } else {
-        //         System.out.println("Converting BGR to BGRA...");
-        //         Imgproc.cvtColor(frame, converted, Imgproc.COLOR_BGR2BGRA);
-        //     }
-
-        //     System.out.println("Conversion done: " + converted.size() + ", channels: " + converted.channels());
-
-        //     int width = converted.cols();
-        //     int height = converted.rows();
-        //     byte[] data = new byte[width * height * 4];
-        //     converted.get(0, 0, data);
-        //     System.out.println("Got pixel data, length: " + data.length);
-
-        //     javafx.scene.image.WritableImage image = new javafx.scene.image.WritableImage(width, height);
-        //     javafx.scene.image.PixelWriter pw = image.getPixelWriter();
-        //     pw.setPixels(0, 0, width, height,
-        //             javafx.scene.image.PixelFormat.getByteBgraPreInstance(),
-        //             data, 0, width * 4);
-
-        //     converted.release();
-        //     System.out.println("mat2Image success ✅");
-        //     return image;
-
-        // } catch (Exception e) {
-        //     System.err.println("❌ mat2Image failed: " + e.getMessage());
-        //     e.printStackTrace();
-        //     return null;
-        // }
     }
+    
 
-    public static double getBestHistogramScore(Mat faceHist, List<Mat> histograms) {
-        double bestScore = 0;
-        for (Mat hist : histograms) {
-            double score = Imgproc.compareHist(faceHist, hist, Imgproc.HISTCMP_CORREL);
-            bestScore = Math.max(bestScore, score);
+     // Stop camera and release resources
+
+    public static void stopCamera() {
+        cameraActive = false;
+        capturingMode = false;
+        if (capture != null && capture.isOpened()) {
+            capture.release();
         }
-        return bestScore;
     }
+    
 
+     // Show alert dialog
+
+    public static void showAlert(String title, String message) {
+        Platform.runLater(() -> {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle(title);
+            alert.setHeaderText(null);
+            alert.setContentText(message);
+            alert.showAndWait();
+        });
+    }
+    
+
+     // Recognize face from Mat image
+     
     public static String recognizeFace(Mat face) {
         Mat faceHist = Loader.computeHistogram(face);
 
@@ -145,5 +120,46 @@ public class Helper {
 
         faceHist.release();
         return bestMatch;
+    }
+    
+
+     // Get best histogram match score
+     
+    private static double getBestHistogramScore(Mat faceHist, List<Mat> histograms) {
+        double bestScore = 0;
+        for (Mat hist : histograms) {
+            double score = Imgproc.compareHist(faceHist, hist, Imgproc.HISTCMP_CORREL);
+            bestScore = Math.max(bestScore, score);
+        }
+        return bestScore;
+    }
+    
+
+     // Mark student as present for today
+     
+    public static void markStudentPresent(String studentName) {
+        markedStudentsToday.add(studentName);
+        System.out.println("Student marked present: " + studentName);
+    }
+    
+
+     // Check if student is marked present
+     
+    public static boolean isStudentMarkedPresent(String studentName) {
+        return markedStudentsToday.contains(studentName);
+    }
+    
+
+     // Clear today's attendance (call at start of new session)
+     
+    public static void clearTodayAttendance() {
+        markedStudentsToday.clear();
+    }
+    
+
+     // Get all marked students
+     
+    public static Set<String> getMarkedStudents() {
+        return new HashSet<>(markedStudentsToday);
     }
 }

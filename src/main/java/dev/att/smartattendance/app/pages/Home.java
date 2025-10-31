@@ -1,12 +1,6 @@
 package dev.att.smartattendance.app.pages;
 
 import org.opencv.core.Mat;
-import org.opencv.core.MatOfRect;
-import org.opencv.core.Point;
-import org.opencv.core.Rect;
-import org.opencv.core.Scalar;
-import org.opencv.core.Size;
-import org.opencv.imgproc.Imgproc;
 import org.opencv.videoio.VideoCapture;
 
 import dev.att.smartattendance.app.Helper;
@@ -14,7 +8,6 @@ import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.Image;
@@ -40,11 +33,10 @@ public class Home {
         Label titleLabel = new Label("SMART ATTENDANCE SYSTEM");
         titleLabel.setStyle("-fx-font-size: 32px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;");
 
-        // User avatar section (circular background with initial)
+        // User avatar section
         VBox avatarSection = new VBox(5);
         avatarSection.setAlignment(Pos.CENTER);
 
-        // Create circular avatar with user initial
         Label avatarLabel = new Label(username.substring(0, 1).toUpperCase());
         avatarLabel.setStyle("-fx-background-color: #7f8c8d; -fx-text-fill: white; -fx-font-size: 20px; " +
                 "-fx-font-weight: bold; -fx-min-width: 50; -fx-min-height: 50; " +
@@ -56,14 +48,14 @@ public class Home {
 
         avatarSection.getChildren().addAll(avatarLabel, usernameLabel);
 
-        // Professor info section (top right)
+        // Professor info section
         VBox profSection = new VBox(2);
         profSection.setAlignment(Pos.CENTER_RIGHT);
         Label profLabel = new Label("Prof. ZHANG Zhiyuan");
         profLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #2c3e50;");
         profSection.getChildren().add(profLabel);
 
-        // Header layout with avatar and prof info
+        // Header layout
         HBox headerTop = new HBox();
         headerTop.setAlignment(Pos.CENTER);
         javafx.scene.layout.Region leftSpacer = new javafx.scene.layout.Region();
@@ -72,7 +64,6 @@ public class Home {
         HBox.setHgrow(rightSpacer, javafx.scene.layout.Priority.ALWAYS);
 
         headerTop.getChildren().addAll(avatarSection, leftSpacer, titleLabel, rightSpacer, profSection);
-
         headerSection.getChildren().add(headerTop);
 
         // Content section
@@ -93,9 +84,6 @@ public class Home {
         semesterSection.getChildren().addAll(semesterLabel, semesterValue);
 
         // Classes section
-        HBox classSection = new HBox(15);
-        classSection.setAlignment(Pos.CENTER_LEFT);
-
         Label classLabel = new Label("Class you are belong to:");
         classLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #7f8c8d;");
 
@@ -127,7 +115,6 @@ public class Home {
         classRow.setAlignment(Pos.CENTER_LEFT);
         classRow.getChildren().addAll(classLabel, classButtons);
 
-        // New Class button positioned to the right
         HBox newClassRow = new HBox();
         newClassRow.setAlignment(Pos.CENTER_RIGHT);
         newClassRow.getChildren().add(newClassBtn);
@@ -139,14 +126,14 @@ public class Home {
         bottomSection.setAlignment(Pos.CENTER);
         bottomSection.setStyle("-fx-padding: 20;");
 
-        // Camera view (smaller and centered)
+        // Camera view
         ImageView webcamView = new ImageView();
         webcamView.setFitWidth(400);
         webcamView.setFitHeight(300);
         webcamView.setPreserveRatio(true);
         webcamView.setStyle("-fx-border-color: #bdc3c7; -fx-border-width: 2;");
 
-        Label cameraLabel = new Label("Live Camera Feed");
+        Label cameraLabel = new Label("Live Camera Feed (Optional)");
         cameraLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #7f8c8d;");
 
         // Logout button
@@ -167,14 +154,17 @@ public class Home {
 
         // Add event handlers for class buttons
         cs102Btn.setOnAction(e -> {
+            Helper.stopCamera();
             Stage stage = (Stage) cs102Btn.getScene().getWindow();
             stage.setScene(Class.createClassScene("CS102", username, stage));
         });
         is216Btn.setOnAction(e -> {
+            Helper.stopCamera();
             Stage stage = (Stage) is216Btn.getScene().getWindow();
             stage.setScene(Class.createClassScene("IS216", username, stage));
         });
         cs440Btn.setOnAction(e -> {
+            Helper.stopCamera();
             Stage stage = (Stage) cs440Btn.getScene().getWindow();
             stage.setScene(Class.createClassScene("CS440", username, stage));
         });
@@ -189,24 +179,16 @@ public class Home {
 
         Scene scene = new Scene(scrollPane, Helper.getScreenWidth(), Helper.getScreenHeight());
 
-        // Optional: Add custom CSS if you have it
-        // try {
-        // scene.getStylesheets().add(getClass().getResource("/css/home.css").toExternalForm());
-        // } catch (Exception ex) {
-        // // CSS file not found, continue without it
-        // }
-
-        // Auto-start camera in home scene (optional - you can comment this out too)
-        // Platform.runLater(() -> startCameraInHomeScene(webcamView, cameraLabel,
-        // username));
+        // Optional: Auto-start camera in home (disabled by default)
+        // Platform.runLater(() -> startSimpleCameraFeed(webcamView));
 
         return scene;
     }
 
-    public static void startCameraInHomeScene(ImageView imageView, Label statusLabel, String username) {
+    // Simple camera feed without face recognition (optional for home screen)
+    public static void startSimpleCameraFeed(ImageView imageView) {
         Helper.capture = new VideoCapture(0);
         if (!Helper.capture.isOpened()) {
-            statusLabel.setText("Camera unavailable");
             return;
         }
         Helper.cameraActive = true;
@@ -215,42 +197,10 @@ public class Home {
             @Override
             protected Void call() {
                 Mat frame = new Mat();
-                Mat gray = new Mat();
 
                 while (Helper.cameraActive) {
                     if (Helper.capture.read(frame)) {
                         Helper.currentFrame = frame.clone();
-                        Imgproc.cvtColor(Helper.currentFrame, gray, Imgproc.COLOR_BGR2GRAY);
-
-                        MatOfRect faces = new MatOfRect();
-                        Helper.faceDetector.detectMultiScale(gray, faces, 1.1, 3, 0,
-                                new Size(30, 30), new Size());
-
-                        Rect[] faceArray = faces.toArray();
-
-                        for (Rect rect : faceArray) {
-                            Mat face = gray.submat(rect);
-                            Mat resizedFace = new Mat();
-                            Imgproc.resize(face, resizedFace, new Size(200, 200));
-
-                            String recognizedName = Helper.recognizeFace(resizedFace);
-
-                            Scalar color = recognizedName.equals(username) ? new Scalar(0, 255, 0)
-                                    : new Scalar(255, 165, 0);
-
-                            Imgproc.rectangle(Helper.currentFrame, new Point(rect.x, rect.y),
-                                    new Point(rect.x + rect.width, rect.y + rect.height),
-                                    color, 3);
-
-                            String displayText = "Welcome, " + recognizedName + "!";
-                            Imgproc.putText(Helper.currentFrame, displayText,
-                                    new Point(rect.x, rect.y - 10),
-                                    Imgproc.FONT_HERSHEY_SIMPLEX, 0.9, color, 2);
-
-                            resizedFace.release();
-                            face.release();
-                        }
-
                         Image imageToShow = Helper.mat2Image(Helper.currentFrame);
                         Platform.runLater(() -> imageView.setImage(imageToShow));
                     }
@@ -263,7 +213,6 @@ public class Home {
                 }
 
                 frame.release();
-                gray.release();
                 return null;
             }
         };
@@ -272,5 +221,4 @@ public class Home {
         th.setDaemon(true);
         th.start();
     }
-
 }

@@ -73,8 +73,6 @@ public class Enrollement {
         layout.setPadding(new Insets(20));
 
         Scene scene = new Scene(layout, Helper.getScreenWidth(), Helper.getScreenHeight());
-        // scene.getStylesheets().add(getClass().getResource("/css/home.css").toExternalForm());
-
         return scene;
     }
 
@@ -176,8 +174,15 @@ public class Enrollement {
             Helper.capturingMode = false;
             Helper.captureCount = 0;
 
+            // CRITICAL FIX: Load the newly captured images and compute histograms
             List<Mat> newImages = Loader.loadImages(Helper.baseImagePath + Helper.capturePersonName);
-            Helper.personHistograms.put(Helper.capturePersonName, Loader.computeHistograms(newImages));
+            List<Mat> newHistograms = Loader.computeHistograms(newImages);
+            Helper.personHistograms.put(Helper.capturePersonName, newHistograms);
+            
+            // Release loaded images to free memory
+            for (Mat img : newImages) {
+                img.release();
+            }
 
             Helper.stopCamera();
 
