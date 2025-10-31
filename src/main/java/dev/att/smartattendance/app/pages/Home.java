@@ -38,10 +38,11 @@ public class Home {
         avatarSection.setAlignment(Pos.CENTER);
 
         Label avatarLabel = new Label(username.substring(0, 1).toUpperCase());
-        avatarLabel.setStyle("-fx-background-color: #7f8c8d; -fx-text-fill: white; -fx-font-size: 20px; " +
-                "-fx-font-weight: bold; -fx-min-width: 50; -fx-min-height: 50; " +
-                "-fx-max-width: 50; -fx-max-height: 50; -fx-background-radius: 25; " +
-                "-fx-alignment: center;");
+        // avatarLabel.setStyle("-fx-background-color: #7f8c8d; -fx-text-fill: white; -fx-font-size: 20px; " +
+        //         "-fx-font-weight: bold; -fx-min-width: 50; -fx-min-height: 50; " +
+        //         "-fx-max-width: 50; -fx-max-height: 50; -fx-background-radius: 25; " +
+        //         "-fx-alignment: center;");
+        avatarLabel.getStyleClass().add("avatar-circle");
 
         Label usernameLabel = new Label(username);
         usernameLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #7f8c8d;");
@@ -95,21 +96,22 @@ public class Home {
         Button is216Btn = new Button("IS216");
         Button cs440Btn = new Button("CS440");
 
-        String buttonStyle = "-fx-background-color: #ecf0f1; -fx-text-fill: #2c3e50; " +
-                "-fx-border-color: #bdc3c7; -fx-border-width: 1; -fx-border-radius: 5; " +
-                "-fx-background-radius: 5; -fx-padding: 8 16; -fx-font-size: 14px;";
+        // String buttonStyle = "-fx-background-color: #ecf0f1; -fx-text-fill: #2c3e50; " +
+        //         "-fx-border-color: #bdc3c7; -fx-border-width: 1; -fx-border-radius: 5; " +
+        //         "-fx-background-radius: 5; -fx-padding: 8 16; -fx-font-size: 14px;";
 
-        cs102Btn.setStyle(buttonStyle);
-        is216Btn.setStyle(buttonStyle);
-        cs440Btn.setStyle(buttonStyle);
+        cs102Btn.getStyleClass().add("class-button");
+        is216Btn.getStyleClass().add("class-button");
+        cs440Btn.getStyleClass().add("class-button");
 
         classButtons.getChildren().addAll(cs102Btn, is216Btn, cs440Btn);
 
         // New Class button
         Button newClassBtn = new Button("New Class");
-        newClassBtn.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; " +
-                "-fx-border-radius: 5; -fx-background-radius: 5; " +
-                "-fx-padding: 8 16; -fx-font-size: 14px;");
+        // newClassBtn.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; " +
+        //         "-fx-border-radius: 5; -fx-background-radius: 5; " +
+        //         "-fx-padding: 8 16; -fx-font-size: 14px;");
+        newClassBtn.getStyleClass().add("new-class-button");
 
         HBox classRow = new HBox(20);
         classRow.setAlignment(Pos.CENTER_LEFT);
@@ -138,9 +140,10 @@ public class Home {
 
         // Logout button
         Button logoutButton = new Button("Logout");
-        logoutButton.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; " +
-                "-fx-border-radius: 5; -fx-background-radius: 5; " +
-                "-fx-padding: 10 20; -fx-font-size: 14px;");
+        // logoutButton.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; " +
+        //         "-fx-border-radius: 5; -fx-background-radius: 5; " +
+        //         "-fx-padding: 10 20; -fx-font-size: 14px;");
+        logoutButton.getStyleClass().add("logout-button");
 
         logoutButton.setOnAction(e -> {
             Helper.stopCamera();
@@ -181,7 +184,7 @@ public class Home {
 
         // Optional: Auto-start camera in home (disabled by default)
         // Platform.runLater(() -> startSimpleCameraFeed(webcamView));
-
+        scene.getStylesheets().add(Home.class.getResource("/css/styles.css").toExternalForm());
         return scene;
     }
 
