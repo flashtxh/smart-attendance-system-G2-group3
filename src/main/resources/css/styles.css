@@ -11,7 +11,7 @@
 /* HOME PAGE STYLING*/
 
 .home-header {
-    -fx-background-color: white;
+    -fx-background-color: rgb(163, 203, 238);
     -fx-padding: 30;
     -fx-border-color: #e5e7eb;
     -fx-border-width: 0 0 2 0;
