@@ -1,7 +1,3 @@
-/* ========================================
-   SMART ATTENDANCE SYSTEM - JAVAFX STYLESHEET
-   ======================================== */
-
 /* Root color definitions */
 .root {
     -fx-primary: #2563eb;
@@ -12,9 +8,7 @@
     -fx-light-gray: #f3f4f6;
 }
 
-/* ========================================
-   HOME PAGE STYLING
-   ======================================== */
+/* HOME PAGE STYLING*/
 
 .home-header {
     -fx-background-color: white;
@@ -118,9 +112,7 @@
     -fx-effect: dropshadow(gaussian, rgba(239, 68, 68, 0.6), 15, 0, 0, 5);
 }
 
-/* ========================================
-   CLASS/ATTENDANCE PAGE STYLING
-   ======================================== */
+/* CLASS/ATTENDANCE PAGE STYLING*/
 
 .back-button {
     -fx-background-color: #6b7280;
@@ -262,9 +254,7 @@
     -fx-effect: dropshadow(gaussian, rgba(59, 130, 246, 0.6), 15, 0, 0, 5);
 }
 
-/* ========================================
-   ENROLLMENT PAGE STYLING
-   ======================================== */
+/* ENROLLMENT PAGE STYLING*/
 
 .enrollment-container {
     -fx-background-color: #f9fafb;
@@ -307,9 +297,7 @@
     -fx-scale-y: 1.05;
 }
 
-/* ========================================
-   VERIFICATION PAGE STYLING
-   ======================================== */
+/* VERIFICATION PAGE STYLING*/
 
 .verification-title {
     -fx-font-size: 28px;
@@ -346,9 +334,7 @@
     -fx-scale-y: 1.05;
 }
 
-/* ========================================
-   CHECKBOX STYLING
-   ======================================== */
+/* CHECKBOX STYLING*/
 
 .check-box {
     -fx-font-size: 14px;
@@ -375,9 +361,7 @@
     -fx-background-color: white;
 }
 
-/* ========================================
-   SCROLL PANE STYLING
-   ======================================== */
+/* SCROLL PANE STYLING*/
 
 .scroll-pane {
     -fx-background-color: transparent;
@@ -406,9 +390,7 @@
     -fx-background-color: #9ca3af;
 }
 
-/* ========================================
-   UTILITY CLASSES
-   ======================================== */
+/* UTILITY CLASSES*/
 
 .text-center {
     -fx-alignment: center;
