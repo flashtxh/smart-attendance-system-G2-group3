@@ -1,9 +1,8 @@
 package dev.att.smartattendance.app.pages;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import dev.att.smartattendance.app.Helper;
+import dev.att.smartattendance.model.professor.Professor;
+import dev.att.smartattendance.model.professor.ProfessorDAO;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -17,9 +16,23 @@ public class Login {
 
     public static void initializeCredentials() {
         // sample credentials - in production, load from database
+        Helper.userCredentials.clear();
         Helper.userCredentials.put("Admin", "admin");
 
-        // add more users as needed
+        ProfessorDAO professorDAO = new ProfessorDAO();
+        
+        try {
+            for (Professor prof : professorDAO.get_all_professors()) {
+                    // use their email as the key, password as value
+                    Helper.userCredentials.put(prof.getEmail(), prof.getPassword());
+                }
+
+                System.out.println("Initialized " + Helper.userCredentials.size() + " user accounts (including professors)");
+
+            } catch (Exception e) {
+                System.err.println("Error loading professor credentials: " + e.getMessage());
+                e.printStackTrace();
+        }
         System.out.println("Initialized " + Helper.userCredentials.size() + " user accounts");
     }
 

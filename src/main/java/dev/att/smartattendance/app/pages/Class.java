@@ -1,6 +1,6 @@
 package dev.att.smartattendance.app.pages;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -17,6 +17,8 @@ import org.opencv.imgproc.Imgproc;
 import org.opencv.videoio.VideoCapture;
 
 import dev.att.smartattendance.app.Helper;
+import dev.att.smartattendance.model.student.Student;
+import dev.att.smartattendance.model.student.StudentDAO;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.geometry.Pos;
@@ -208,19 +210,25 @@ public class Class {
 
     private static List<String> getStudentsForClass(String className) {
         // Return different student lists based on class, must get from SQL instead
-        switch (className) {
-            case "CS102":
-                return Arrays.asList("Alice Johnson", "Bob Smith", "Charlie Brown", 
-                        "Diana Prince", "Admin");
-            case "IS216":
-                return Arrays.asList("Eve Davis", "Frank Miller", "Grace Lee", 
-                        "Henry Wilson", "Admin");
-            case "CS440":
-                return Arrays.asList("Ivy Chen", "Jack Turner", "Kelly Adams", 
-                        "Leo Martinez", "Admin");
-            default:
-                return Arrays.asList("Admin", "Student 1", "Student 2");
+        StudentDAO studentDAO = new StudentDAO();
+        List<String> studentNames = new ArrayList<>();
+
+        try {
+            List<Student> students = studentDAO.get_students_by_group(className); // returns all of us rn
+
+            if (students.isEmpty()) {
+                System.out.println("No students found for class: " + className);
+            }
+
+            for (Student s : students) {
+                studentNames.add(s.getName());
+            }
+
+        } catch (Exception e) {
+            System.err.println("Error retrieving students for " + className + ": " + e.getMessage());
         }
+
+        return studentNames;
     }
 
     private static void startAttendanceCamera(ImageView imageView, Label statusLabel, String className) {

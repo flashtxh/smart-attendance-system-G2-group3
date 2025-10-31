@@ -30,8 +30,8 @@ public class ProfessorDAO {
         }
     }
 
-    public List<String> get_all_professors() {
-        List<String> professors = new ArrayList<>();
+    public List<Professor> get_all_professors() {
+        List<Professor> professors = new ArrayList<>();
         String sql = "select * from professors";
         try (
             Connection conn = DatabaseManager.getConnection();
@@ -45,7 +45,7 @@ public class ProfessorDAO {
                 String email = rs.getString("email");
 
                 String info = String.format("[%s] %s %s", professor_id, username, email);
-                professors.add(info);
+                professors.add(new Professor(professor_id, username, email, info));
             }
 
         } catch (SQLException e) {

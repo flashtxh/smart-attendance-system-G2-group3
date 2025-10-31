@@ -1,6 +1,9 @@
 package dev.att.smartattendance.model.student;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -70,21 +73,20 @@ public class StudentDAO {
         return students;
     }
     
-    public List<String> get_students_by_group(String group_id) {
-        List<String> students = new ArrayList<>();
-        String sql = "select student_id, name, email from students where group_id = ?";
+    public List<Student> get_students_by_group(String group_id) {
+        List<Student> students = new ArrayList<>();
+        String sql = "select student_id, name, email from students";
 
         try (
             Connection conn = DatabaseManager.getConnection();
             PreparedStatement ps = conn.prepareStatement(sql);
         ) {
-            ps.setString(1, group_id);
             try(ResultSet rs = ps.executeQuery()) {
                 while(rs.next()) {
                     String student_id = rs.getString("student_id");
                     String name = rs.getString("name");
                     String email = rs.getString("email");
-                    students.add(student_id + " - " + name + " (" + email + ")");
+                    students.add(new Student(student_id, name, email));
                 }
             }
         } catch (SQLException e) {

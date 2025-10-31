@@ -51,7 +51,7 @@ public class Home {
         // Professor info section
         VBox profSection = new VBox(2);
         profSection.setAlignment(Pos.CENTER_RIGHT);
-        Label profLabel = new Label("Prof. ZHANG Zhiyuan");
+        Label profLabel = new Label("Prof. "+username);
         profLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #2c3e50;");
         profSection.getChildren().add(profLabel);
 
