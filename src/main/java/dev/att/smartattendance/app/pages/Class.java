@@ -49,8 +49,10 @@ public class Class {
         detectedInThisClass.clear();
         
         // Main container
+        // VBox mainContainer = new VBox();
+        // mainContainer.setStyle("-fx-background-color: #f5f5f5;");
         VBox mainContainer = new VBox();
-        mainContainer.setStyle("-fx-background-color: #f5f5f5;");
+    mainContainer.setStyle("-fx-background-color: #0f172a;");
 
         // Header section
         VBox headerSection = new VBox(10);
@@ -84,8 +86,10 @@ public class Class {
 
         headerSection.getChildren().add(headerTop);
 
+        // HBox contentSection = new HBox(30);
+        // contentSection.setStyle("-fx-padding: 40;");
         HBox contentSection = new HBox(30);
-        contentSection.setStyle("-fx-padding: 40;");
+        contentSection.setStyle("-fx-padding: 40; -fx-background-color: #0f172a;");
         contentSection.setAlignment(Pos.TOP_CENTER);
 
         // LEFT SIDE: Camera Feed
@@ -212,7 +216,8 @@ public class Class {
 
         ScrollPane mainScrollPane = new ScrollPane(mainContainer);
         mainScrollPane.setFitToWidth(true);
-        mainScrollPane.setStyle("-fx-background-color: #f5f5f5;");
+        // mainScrollPane.setStyle("-fx-background-color: #f5f5f5;");
+        mainScrollPane.setStyle("-fx-background-color: #0f172a;");
 
         Scene scene = new Scene(mainScrollPane, Helper.getScreenWidth(), Helper.getScreenHeight());
         scene.getStylesheets().add(Class.class.getResource("/css/styles.css").toExternalForm());

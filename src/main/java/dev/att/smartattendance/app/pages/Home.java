@@ -20,8 +20,10 @@ public class Home {
 
     public static Scene createHomeScene(String username) {
         // Main container
+        // VBox mainContainer = new VBox();
+        // mainContainer.setStyle("-fx-background-color: #f5f5f5;");
         VBox mainContainer = new VBox();
-        mainContainer.setStyle("-fx-background-color: #f5f5f5;");
+        mainContainer.setStyle("-fx-background-color: #0f172a;"); // Changed to dark blue
 
         // Header section
         VBox headerSection = new VBox(10);
@@ -178,7 +180,8 @@ public class Home {
 
         javafx.scene.control.ScrollPane scrollPane = new javafx.scene.control.ScrollPane(mainContainer);
         scrollPane.setFitToWidth(true);
-        scrollPane.setStyle("-fx-background-color: #f5f5f5;");
+        // scrollPane.setStyle("-fx-background-color: #f5f5f5;");
+        scrollPane.setStyle("-fx-background-color: #0f172a;");
 
         Scene scene = new Scene(scrollPane, Helper.getScreenWidth(), Helper.getScreenHeight());
 
