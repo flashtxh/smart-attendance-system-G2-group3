@@ -124,7 +124,23 @@
     -fx-effect: dropshadow(gaussian, rgba(220, 38, 38, 0.8), 25, 0, 0, 10);
 }
 
+.enroll-student-button {
+    -fx-background-color: linear-gradient(from 0% 0% to 100% 100%, #10b981 0%, #059669 100%);
+    -fx-text-fill: white;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-padding: 15 35;
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-effect: dropshadow(gaussian, rgba(16, 185, 129, 0.5), 15, 0, 0, 5);
+}
 
+.enroll-student-button:hover {
+    -fx-background-color: linear-gradient(from 0% 0% to 100% 100%, #059669 0%, #047857 100%);
+    -fx-scale-x: 1.08;
+    -fx-scale-y: 1.08;
+    -fx-effect: dropshadow(gaussian, rgba(16, 185, 129, 0.8), 25, 0, 0, 10);
+}
 /*CLASS/ATTENDANCE PAGE STYLING*/
    
 

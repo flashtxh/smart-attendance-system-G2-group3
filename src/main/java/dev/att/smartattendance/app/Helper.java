@@ -35,6 +35,7 @@ public class Helper {
     public static int captureCount = 0;
     public static String capturePersonName = "";
     public static boolean capturingMode = false;
+    public static String capturePersonEmail = "";
     
     // Authentication
     public static String loggedInUsername = "";
@@ -48,6 +49,7 @@ public class Helper {
     public static String cascadePath = "src/main/resources/fxml/haarcascade_frontalface_alt.xml";
     
 
+    public static Map<String, String> emailToNameMap = new HashMap<>();
      // Get screen width
 
     public static double getScreenWidth() {

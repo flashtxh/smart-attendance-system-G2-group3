@@ -2,9 +2,7 @@ package dev.att.smartattendance.app;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
@@ -14,8 +12,22 @@ import org.opencv.core.Size;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 
+import dev.att.smartattendance.model.student.Student;
+import dev.att.smartattendance.model.student.StudentDAO;
+
 public class Loader {
 
+    public static void loadStudentNames() {
+        Helper.emailToNameMap.clear();
+        StudentDAO studentDAO = new StudentDAO();
+        try {
+            for (Student student : studentDAO.get_all_students()) {
+                Helper.emailToNameMap.put(student.getEmail(), student.getName());
+            }
+        } catch (Exception e) {
+            System.err.println("Error loading student email-name mapping: " + e.getMessage());
+        }
+    }
     public static void loadExistingPersons() {
         File baseDir = new File(Helper.baseImagePath);
         if (!baseDir.exists()) {

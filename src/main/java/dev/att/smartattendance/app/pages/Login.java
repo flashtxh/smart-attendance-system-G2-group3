@@ -24,6 +24,7 @@ public class Login {
         try {
             for (Professor prof : professorDAO.get_all_professors()) {
                 Helper.userCredentials.put(prof.getEmail(), prof.getPassword());
+                Helper.emailToNameMap.put(prof.getEmail(), prof.getUsername());
             }
             System.out.println("Initialized " + Helper.userCredentials.size() + " user accounts (including professors)");
         } catch (Exception e) {

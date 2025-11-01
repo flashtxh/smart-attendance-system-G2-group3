@@ -20,10 +20,8 @@ public class Home {
 
     public static Scene createHomeScene(String username) {
         // Main container
-        // VBox mainContainer = new VBox();
-        // mainContainer.setStyle("-fx-background-color: #f5f5f5;");
         VBox mainContainer = new VBox();
-        mainContainer.setStyle("-fx-background-color: #0f172a;"); // Changed to dark blue
+        mainContainer.setStyle("-fx-background-color: #0f172a;");
 
         // Header section
         VBox headerSection = new VBox(10);
@@ -40,10 +38,6 @@ public class Home {
         avatarSection.setAlignment(Pos.CENTER);
 
         Label avatarLabel = new Label(username.substring(0, 1).toUpperCase());
-        // avatarLabel.setStyle("-fx-background-color: #7f8c8d; -fx-text-fill: white; -fx-font-size: 20px; " +
-        //         "-fx-font-weight: bold; -fx-min-width: 50; -fx-min-height: 50; " +
-        //         "-fx-max-width: 50; -fx-max-height: 50; -fx-background-radius: 25; " +
-        //         "-fx-alignment: center;");
         avatarLabel.getStyleClass().add("avatar-circle");
 
         Label usernameLabel = new Label(username);
@@ -98,32 +92,28 @@ public class Home {
         Button is216Btn = new Button("IS216");
         Button cs440Btn = new Button("CS440");
 
-        // String buttonStyle = "-fx-background-color: #ecf0f1; -fx-text-fill: #2c3e50; " +
-        //         "-fx-border-color: #bdc3c7; -fx-border-width: 1; -fx-border-radius: 5; " +
-        //         "-fx-background-radius: 5; -fx-padding: 8 16; -fx-font-size: 14px;";
-
         cs102Btn.getStyleClass().add("class-button");
         is216Btn.getStyleClass().add("class-button");
         cs440Btn.getStyleClass().add("class-button");
 
         classButtons.getChildren().addAll(cs102Btn, is216Btn, cs440Btn);
 
-        // New Class button
+        // New Class and Enroll Student buttons row
         Button newClassBtn = new Button("New Class");
-        // newClassBtn.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; " +
-        //         "-fx-border-radius: 5; -fx-background-radius: 5; " +
-        //         "-fx-padding: 8 16; -fx-font-size: 14px;");
         newClassBtn.getStyleClass().add("new-class-button");
+
+        Button enrollStudentBtn = new Button("Enroll Student");
+        enrollStudentBtn.getStyleClass().add("enroll-student-button");
 
         HBox classRow = new HBox(20);
         classRow.setAlignment(Pos.CENTER_LEFT);
         classRow.getChildren().addAll(classLabel, classButtons);
 
-        HBox newClassRow = new HBox();
-        newClassRow.setAlignment(Pos.CENTER_RIGHT);
-        newClassRow.getChildren().add(newClassBtn);
+        HBox actionButtonsRow = new HBox(15);
+        actionButtonsRow.setAlignment(Pos.CENTER_RIGHT);
+        actionButtonsRow.getChildren().addAll(enrollStudentBtn, newClassBtn);
 
-        contentSection.getChildren().addAll(semesterSection, classRow, newClassRow);
+        contentSection.getChildren().addAll(semesterSection, classRow, actionButtonsRow);
 
         // Bottom section with camera and logout
         VBox bottomSection = new VBox(20);
@@ -142,9 +132,6 @@ public class Home {
 
         // Logout button
         Button logoutButton = new Button("Logout");
-        // logoutButton.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; " +
-        //         "-fx-border-radius: 5; -fx-background-radius: 5; " +
-        //         "-fx-padding: 10 20; -fx-font-size: 14px;");
         logoutButton.getStyleClass().add("logout-button");
 
         logoutButton.setOnAction(e -> {
@@ -175,12 +162,18 @@ public class Home {
         });
         newClassBtn.setOnAction(e -> Helper.showAlert("New Class", "Creating new class..."));
 
+        // Enroll Student button action - navigate to enrollment info page
+        enrollStudentBtn.setOnAction(e -> {
+            Helper.stopCamera();
+            Stage stage = (Stage) enrollStudentBtn.getScene().getWindow();
+            stage.setScene(Enrollement.createEnrollmentInfoScene(stage));
+        });
+
         // Main layout
         mainContainer.getChildren().addAll(headerSection, contentSection, bottomSection);
 
         javafx.scene.control.ScrollPane scrollPane = new javafx.scene.control.ScrollPane(mainContainer);
         scrollPane.setFitToWidth(true);
-        // scrollPane.setStyle("-fx-background-color: #f5f5f5;");
         scrollPane.setStyle("-fx-background-color: #0f172a;");
 
         Scene scene = new Scene(scrollPane, Helper.getScreenWidth(), Helper.getScreenHeight());
