@@ -1,5 +1,10 @@
 package dev.att.smartattendance.app.pages;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -18,6 +23,8 @@ import org.opencv.videoio.VideoCapture;
 
 import dev.att.smartattendance.app.Helper;
 import dev.att.smartattendance.app.Loader;
+import dev.att.smartattendance.model.group.Group;
+import dev.att.smartattendance.model.group.GroupDAO;
 import dev.att.smartattendance.model.student.Student;
 import dev.att.smartattendance.model.student.StudentDAO;
 import javafx.application.Platform;
@@ -34,6 +41,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 public class Class {
@@ -166,7 +174,7 @@ public class Class {
         });
 
         exportButton.setOnAction(e -> {
-            Helper.showAlert("Export", "Exporting attendance to Excel...");
+            exportAttendanceToCSV(groupId, groupName, stage);
         });
 
         actionButtons.getChildren().addAll(saveButton, exportButton);
@@ -354,5 +362,100 @@ public class Class {
             boolean present = entry.getValue().isSelected();
             System.out.println(studentName + ": " + (present ? "Present" : "Absent"));
         }        
+    }
+
+    private static void exportAttendanceToCSV(String groupId, String groupName, Stage stage) {        
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Save Attendance Report");
+                
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+        String defaultFileName = groupName.replaceAll("[^a-zA-Z0-9]", "_") + "_Attendance_" + timestamp + ".csv";
+        fileChooser.setInitialFileName(defaultFileName);
+                
+        FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter("CSV files (*.csv)", "*.csv");
+        fileChooser.getExtensionFilters().add(extFilter);
+                
+        File file = fileChooser.showSaveDialog(stage);
+        
+        if (file != null) {
+            try {
+                writeAttendanceCSV(file, groupId, groupName);
+                Helper.showAlert("Export Success", "Attendance exported successfully to:\n" + file.getAbsolutePath());
+            } catch (IOException ex) {
+                Helper.showAlert("Export Error", "Failed to export attendance:\n" + ex.getMessage());
+                ex.printStackTrace();
+            }
+        }
+    }
+
+    private static void writeAttendanceCSV(File file, String groupId, String groupName) throws IOException {        
+        GroupDAO groupDAO = new GroupDAO();
+        Group group = null;
+                
+        for (Group g : groupDAO.get_all_groups()) {
+            if (g.getGroup_id().equals(groupId)) {
+                group = g;
+                break;
+            }
+        }
+        
+        String courseCode = (group != null) ? group.getcourse_code() : "N/A";
+        String currentDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+    String currentDay = LocalDateTime.now().format(DateTimeFormatter.ofPattern("EEEE")); 
+        
+        try (FileWriter writer = new FileWriter(file)) {            
+            writer.append("Name,Email,Course Code,Group,Date,Day,Attendance\n");
+                        
+            List<Student> students = getStudentsForGroup(groupId);
+                        
+            for (Student student : students) {
+                String studentName = student.getName();
+                String studentEmail = student.getEmail();
+                                
+                if (studentName.equalsIgnoreCase("Admin")) {
+                    continue;
+                }
+                                
+                CheckBox checkBox = studentCheckboxes.get(studentName);
+                String attendance;
+                
+                if (checkBox != null && checkBox.isSelected()) {
+                    attendance = "Present";
+                } else {
+                    attendance = "Absent";
+                }
+                                
+                writer.append(escapeCSV(studentName))
+                    .append(',')
+                    .append(escapeCSV(studentEmail))
+                    .append(',')
+                    .append(escapeCSV(courseCode))
+                    .append(',')
+                    .append(escapeCSV(groupName))
+                    .append(',')
+                    .append(currentDate)
+                    .append(',')
+                    .append(currentDay)
+                    .append(',')
+                    .append(attendance)
+                    .append('\n');
+            }
+            
+            writer.flush();
+            System.out.println("Attendance CSV exported successfully: " + file.getAbsolutePath());
+        }
+    }
+    
+    private static String escapeCSV(String value) {
+        if (value == null) {
+            return "";
+        }
+                
+        if (value.contains(",") || value.contains("\"") || value.contains("\n")) {            
+            value = value.replace("\"", "\"\"");
+            return "\"" + value + "\"";
+        }
+        
+        return value;
     }
 }
