@@ -12,7 +12,7 @@ import dev.att.smartattendance.util.DatabaseManager;
 public class StudentDAO {
 
     public void insert_student(String student_id, String name, String email) {
-        String sql = "insert into students (student_id, name, email) values (?, ?, ?)";
+        String sql = "INSERT INTO students (student_id, name, email) VALUES (?, ?, ?)";
 
         try (
             Connection conn = DatabaseManager.getConnection();
@@ -30,7 +30,7 @@ public class StudentDAO {
     }
 
     public Student get_student_by_email(String email) {
-        String sql = "select * from students where email = ?";
+        String sql = "SELECT * FROM students WHERE email = ?";
         try (
             Connection conn = DatabaseManager.getConnection();
             PreparedStatement pstmt = conn.prepareStatement(sql);
@@ -52,7 +52,7 @@ public class StudentDAO {
 
     public List<Student> get_all_students() {
         List<Student> students = new ArrayList<>();
-        String sql = "select * from students";
+        String sql = "SELECT * FROM students";
 
         try (
             Connection conn = DatabaseManager.getConnection();
@@ -67,20 +67,27 @@ public class StudentDAO {
                 ));
             }
         } catch (SQLException e) {
-            System.err.println("Failed to retreive students: " + e.getMessage());
+            System.err.println("Failed to retrieve students: " + e.getMessage());
         }
 
         return students;
     }
     
+    // FIXED: Now actually filters by group_id using a JOIN!
     public List<Student> get_students_by_group(String group_id) {
         List<Student> students = new ArrayList<>();
-        String sql = "select student_id, name, email from students";
+        String sql = "SELECT s.student_id, s.name, s.email " +
+                     "FROM students s " +
+                     "INNER JOIN student_group sg ON s.student_id = sg.student_id " +
+                     "WHERE sg.group_id = ? " +
+                     "ORDER BY s.name";
 
         try (
             Connection conn = DatabaseManager.getConnection();
             PreparedStatement ps = conn.prepareStatement(sql);
         ) {
+            ps.setString(1, group_id);
+            
             try(ResultSet rs = ps.executeQuery()) {
                 while(rs.next()) {
                     String student_id = rs.getString("student_id");
@@ -90,10 +97,9 @@ public class StudentDAO {
                 }
             }
         } catch (SQLException e) {
-            System.err.println("Failed to retrieve students: " + e.getMessage());
+            System.err.println("Failed to retrieve students by group: " + e.getMessage());
         }
         
         return students;
     }
-
 }

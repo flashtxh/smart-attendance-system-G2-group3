@@ -37,38 +37,32 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 public class Class {
-    
-    // Store checkboxes and status labels for each student (key = student name)
+        
     private static Map<String, CheckBox> studentCheckboxes = new HashMap<>();
     private static Map<String, Label> studentStatusLabels = new HashMap<>();
     private static Set<String> detectedStudentsInThisSession = new HashSet<>();
-    
-    public static Scene createClassScene(String className, String username, Stage stage) {
-        // Clear previous data
+        
+    public static Scene createClassScene(String groupId, String groupName, String username, Stage stage) {        
         studentCheckboxes.clear();
         studentStatusLabels.clear();
         detectedStudentsInThisSession.clear();
-        
-        // Main container
+                
         VBox mainContainer = new VBox();
         mainContainer.setStyle("-fx-background-color: #0f172a;");
-
-        // Header section
+        
         VBox headerSection = new VBox(10);
         headerSection.getStyleClass().add("home-header");
         headerSection.setAlignment(Pos.CENTER);
-
-        // Title
-        Label titleLabel = new Label(className + " - Attendance");
+        
+        Label titleLabel = new Label(groupName + " - Attendance");
         titleLabel.getStyleClass().add("home-title");
-
-        // Back button
+        
         Button backButton = new Button("← Back to Home");
         backButton.getStyleClass().add("back-button");
 
         backButton.setOnAction(e -> {
             Helper.stopCamera();
-            stage.setScene(Home.createHomeScene(username));
+            stage.setScene(Home.createHomeScene(Helper.loggedInUsername));
         });
 
         HBox headerTop = new HBox();
@@ -82,8 +76,7 @@ public class Class {
         HBox contentSection = new HBox(30);
         contentSection.setStyle("-fx-padding: 40; -fx-background-color: #0f172a;");
         contentSection.setAlignment(Pos.TOP_CENTER);
-
-        // LEFT SIDE: Camera Feed
+        
         VBox cameraSection = new VBox(15);
         cameraSection.getStyleClass().add("camera-section");
         cameraSection.setAlignment(Pos.CENTER);
@@ -105,8 +98,7 @@ public class Class {
         detectionStatus.setAlignment(Pos.CENTER);
 
         cameraSection.getChildren().addAll(cameraTitle, webcamView, detectionStatus);
-
-        // RIGHT SIDE: Student Attendance List
+        
         VBox attendanceSection = new VBox(15);
         attendanceSection.getStyleClass().add("attendance-section");
         attendanceSection.setMinWidth(500);
@@ -114,49 +106,50 @@ public class Class {
         Label attendanceTitle = new Label("Student Attendance List");
         attendanceTitle.getStyleClass().add("attendance-title");
 
-        Label sessionLabel = new Label("Session: Week 10 - November 1, 2025");
+        Label sessionLabel = new Label("Session: Week 10 - November 2, 2025");
         sessionLabel.getStyleClass().add("session-label");
-
-        // Student list with checkboxes
+        
         VBox studentList = new VBox(12);
         studentList.setStyle("-fx-padding: 15 0;");
+        
+        List<Student> students = getStudentsForGroup(groupId);
 
-        // Get students for this class
-        List<Student> students = getStudentsForClass(className);
+        if (students.isEmpty()) {
+            Label noStudentsLabel = new Label("No students enrolled in this class yet");
+            noStudentsLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #94a3b8; -fx-font-style: italic;");
+            studentList.getChildren().add(noStudentsLabel);
+        } else {
+            for (Student student : students) {
+                String studentName = student.getName();
+                                
+                if (studentName.equalsIgnoreCase("Admin")) {
+                    continue;
+                }
 
-        for (Student student : students) {
-            String studentName = student.getName();
-            
-            // Skip Admin from the checkbox list
-            if (studentName.equalsIgnoreCase("Admin")) {
-                continue;
+                HBox studentRow = new HBox(15);
+                studentRow.setAlignment(Pos.CENTER_LEFT);
+                studentRow.getStyleClass().add("student-row");
+
+                CheckBox checkBox = new CheckBox();
+                checkBox.setStyle("-fx-font-size: 14px;");
+                                
+                studentCheckboxes.put(studentName, checkBox);
+
+                Label nameLabel = new Label(studentName);
+                nameLabel.getStyleClass().add("student-name");
+
+                Label statusIndicator = new Label("Absent");
+                statusIndicator.setStyle("-fx-text-fill: #e74c3c; -fx-font-size: 12px;");
+                studentStatusLabels.put(studentName, statusIndicator);
+
+                Region spacer2 = new Region();
+                HBox.setHgrow(spacer2, Priority.ALWAYS);
+
+                studentRow.getChildren().addAll(checkBox, nameLabel, spacer2, statusIndicator);
+                studentList.getChildren().add(studentRow);
             }
-
-            HBox studentRow = new HBox(15);
-            studentRow.setAlignment(Pos.CENTER_LEFT);
-            studentRow.getStyleClass().add("student-row");
-
-            CheckBox checkBox = new CheckBox();
-            checkBox.setStyle("-fx-font-size: 14px;");
-            
-            // Store checkbox with student name as key
-            studentCheckboxes.put(studentName, checkBox);
-
-            Label nameLabel = new Label(studentName);
-            nameLabel.getStyleClass().add("student-name");
-
-            Label statusIndicator = new Label("Absent");
-            statusIndicator.setStyle("-fx-text-fill: #e74c3c; -fx-font-size: 12px;");
-            studentStatusLabels.put(studentName, statusIndicator);
-
-            Region spacer2 = new Region();
-            HBox.setHgrow(spacer2, Priority.ALWAYS);
-
-            studentRow.getChildren().addAll(checkBox, nameLabel, spacer2, statusIndicator);
-            studentList.getChildren().add(studentRow);
         }
-
-        // Action buttons
+        
         HBox actionButtons = new HBox(15);
         actionButtons.setAlignment(Pos.CENTER);
         actionButtons.setStyle("-fx-padding: 20 0 0 0;");
@@ -168,8 +161,8 @@ public class Class {
         exportButton.getStyleClass().add("export-button");
 
         saveButton.setOnAction(e -> {
-            saveAttendance();
-            Helper.showAlert("Success", "Attendance saved successfully!");
+            saveAttendance(groupId, groupName);
+            Helper.showAlert("Success", "Attendance saved successfully for " + groupName + "!");
         });
 
         exportButton.setOnAction(e -> {
@@ -187,8 +180,7 @@ public class Class {
         attendanceSection.getChildren().addAll(attendanceTitle, sessionLabel, studentScrollPane, actionButtons);
 
         contentSection.getChildren().addAll(cameraSection, attendanceSection);
-
-        // Main layout
+        
         mainContainer.getChildren().addAll(headerSection, contentSection);
 
         ScrollPane mainScrollPane = new ScrollPane(mainContainer);
@@ -197,39 +189,40 @@ public class Class {
 
         Scene scene = new Scene(mainScrollPane, Helper.getScreenWidth(), Helper.getScreenHeight());
         scene.getStylesheets().add(Class.class.getResource("/css/styles.css").toExternalForm());
-        
-        // Start camera with face detection immediately
-        Platform.runLater(() -> startAttendanceCamera(webcamView, detectionStatus, className));
+                
+        Platform.runLater(() -> startAttendanceCamera(webcamView, detectionStatus, groupId));
 
         return scene;
     }
-
-    private static List<Student> getStudentsForClass(String className) {
+    
+    private static List<Student> getStudentsForGroup(String groupId) {
         Loader.loadStudentNames();
         StudentDAO studentDAO = new StudentDAO();
         List<Student> students = new ArrayList<>();
 
-        try {
-            students = studentDAO.get_students_by_group(className);
+        try {            
+            students = studentDAO.get_students_by_group(groupId);
 
             if (students.isEmpty()) {
-                System.out.println("No students found for class: " + className);
+                System.out.println("No students found for group: " + groupId);
+            } else {
+                System.out.println("Found " + students.size() + " students for group: " + groupId);
             }
-            
-            // Ensure emailToNameMap is populated for this class
+                        
             for (Student student : students) {
                 Helper.emailToNameMap.put(student.getEmail(), student.getName());
                 System.out.println("Mapped for display: " + student.getEmail() + " -> " + student.getName());
             }
 
         } catch (Exception e) {
-            System.err.println("Error retrieving students for " + className + ": " + e.getMessage());
+            System.err.println("Error retrieving students for group " + groupId + ": " + e.getMessage());
+            e.printStackTrace();
         }
 
         return students;
     }
 
-    private static void startAttendanceCamera(ImageView imageView, Label statusLabel, String className) {
+    private static void startAttendanceCamera(ImageView imageView, Label statusLabel, String groupId) {
         Helper.capture = new VideoCapture(0);
         if (!Helper.capture.isOpened()) {
             Platform.runLater(() -> statusLabel.setText("Camera unavailable"));
@@ -237,7 +230,7 @@ public class Class {
         }
         Helper.cameraActive = true;
 
-        Platform.runLater(() -> statusLabel.setText("Yayy Camera active - Position yourself in front of camera"));
+        Platform.runLater(() -> statusLabel.setText("Camera active - Position yourself in front of camera"));
 
         Task<Void> frameGrabber = new Task<>() {
             @Override
@@ -263,42 +256,35 @@ public class Class {
                                 Mat face = gray.submat(rect);
                                 Mat resizedFace = new Mat();
                                 Imgproc.resize(face, resizedFace, new Size(200, 200));
-
-                                // recognizeFace returns email
+                                
                                 String recognizedEmail = Helper.recognizeFace(resizedFace);
-
-                                // Track consecutive detections for reliability
+                                
                                 if (recognizedEmail.equals(lastDetectedEmail) && !recognizedEmail.equals("Unknown")) {
                                     consecutiveDetections++;
                                 } else {
                                     consecutiveDetections = 1;
                                     lastDetectedEmail = recognizedEmail;
                                 }
-
-                                // Get student name from email
+                                
                                 String studentName = Helper.emailToNameMap.get(recognizedEmail);
-                                if (studentName == null) {
-                                    // If mapping not found, use email as fallback for debugging
+                                if (studentName == null) {                                    
                                     studentName = recognizedEmail.equals("Unknown") ? "Unknown" : recognizedEmail;
                                 }
-
-                                // Mark attendance if detected reliably and not already marked
+                                
                                 if (consecutiveDetections >= 5 && !recognizedEmail.equals("Unknown") 
                                     && !detectedStudentsInThisSession.contains(studentName)) {
                                     
                                     detectedStudentsInThisSession.add(studentName);
-                                    
-                                    // Auto-check the checkbox
+                                                                        
                                     String finalStudentName = studentName;
                                     Platform.runLater(() -> markStudentPresent(finalStudentName, statusLabel));
                                     
                                     consecutiveDetections = 0;
                                 }
-
-                                // Visual feedback - use student name for display
+                                
                                 Scalar color = studentName.equals("Unknown") 
-                                        ? new Scalar(255, 165, 0)  // Orange for unknown
-                                        : new Scalar(0, 255, 0);   // Green for recognized
+                                    ? new Scalar(255, 165, 0)  
+                                    : new Scalar(0, 255, 0);   
 
                                 Imgproc.rectangle(Helper.currentFrame, new Point(rect.x, rect.y),
                                         new Point(rect.x + rect.width, rect.y + rect.height),
@@ -322,7 +308,7 @@ public class Class {
                     }
 
                     try {
-                        Thread.sleep(33); // ~30 FPS
+                    Thread.sleep(33); 
                     } catch (InterruptedException e) {
                         break;
                     }
@@ -339,8 +325,7 @@ public class Class {
         th.start();
     }
 
-    private static void markStudentPresent(String studentName, Label statusLabel) {
-        // Get the checkbox for this student (using name as key)
+    private static void markStudentPresent(String studentName, Label statusLabel) {        
         CheckBox checkBox = studentCheckboxes.get(studentName);
         Label statusIndicator = studentStatusLabels.get(studentName);
         
@@ -352,23 +337,22 @@ public class Class {
                 statusIndicator.setStyle("-fx-text-fill: #27ae60; -fx-font-size: 12px; -fx-font-weight: bold;");
             }
             
-            statusLabel.setText("Attendance marked: " + studentName);
+            statusLabel.setText("✓ Attendance marked: " + studentName);
             statusLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #27ae60; -fx-font-weight: bold;");
             
             System.out.println("Attendance marked for: " + studentName);
-        } else {
-            // Student not in this class
-            statusLabel.setText("Oops: " + studentName + " detected but not in this class");
+        } else {            
+            statusLabel.setText("⚠ " + studentName + " detected but not in this class");
             statusLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #f39c12; -fx-font-weight: bold;");
         }
     }
 
-    private static void saveAttendance() {
-        System.out.println("Saving attendance:");
+    private static void saveAttendance(String groupId, String groupName) {
+        System.out.println("Saving attendance for group: " + groupName + " (ID: " + groupId + ")");
         for (Map.Entry<String, CheckBox> entry : studentCheckboxes.entrySet()) {
             String studentName = entry.getKey();
             boolean present = entry.getValue().isSelected();
             System.out.println(studentName + ": " + (present ? "Present" : "Absent"));
-        }
+        }        
     }
 }
