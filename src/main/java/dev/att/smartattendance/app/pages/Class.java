@@ -62,7 +62,7 @@ public class Class {
         headerSection.getStyleClass().add("home-header");
         headerSection.setAlignment(Pos.CENTER);
         
-        Label titleLabel = new Label(groupName + " - Attendance");
+        Label titleLabel = new Label(groupName + " ("+groupId+")" + " - Attendance");
         titleLabel.getStyleClass().add("home-title");
         
         Button backButton = new Button("← Back to Home");
