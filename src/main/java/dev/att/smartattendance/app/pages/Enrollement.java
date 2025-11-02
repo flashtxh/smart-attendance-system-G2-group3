@@ -37,8 +37,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 public class Enrollement {
-    
-    // Database helper methods following DAO pattern
+        
     private static boolean isEmailExists(String email) {
         String sql = "SELECT COUNT(*) FROM students WHERE email = ?";
         
@@ -79,30 +78,25 @@ public class Enrollement {
             return false;
         }
     }
-    
-    // New method to create the enrollment information page
+        
     public static Scene createEnrollmentInfoScene(Stage stage) {
         VBox mainContainer = new VBox(30);
         mainContainer.setStyle("-fx-background-color: #0f172a;");
         mainContainer.setAlignment(Pos.CENTER);
         mainContainer.setPadding(new Insets(50));
-
-        // Title
+        
         Label titleLabel = new Label("Student Enrollment");
         titleLabel.setStyle("-fx-font-size: 36px; -fx-font-weight: bold; -fx-text-fill: #60a5fa;");
-
-        // Subtitle
+        
         Label subtitleLabel = new Label("Enter student information to begin face enrollment");
         subtitleLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #94a3b8;");
-
-        // Form container
+        
         VBox formContainer = new VBox(20);
         formContainer.setStyle("-fx-background-color: #1e293b; -fx-padding: 40; -fx-background-radius: 15; " +
                 "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.5), 20, 0, 0, 5);");
         formContainer.setAlignment(Pos.CENTER_LEFT);
         formContainer.setMaxWidth(500);
-
-        // Student Name field
+        
         Label nameLabel = new Label("Student Name:");
         nameLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #f1f5f9; -fx-font-weight: 600;");
         
@@ -112,8 +106,7 @@ public class Enrollement {
                 "-fx-text-fill: #f1f5f9; -fx-prompt-text-fill: #64748b; -fx-background-radius: 8; " +
                 "-fx-border-color: #3b82f6; -fx-border-width: 2; -fx-border-radius: 8;");
         nameField.setPrefWidth(400);
-
-        // Student Email field
+        
         Label emailLabel = new Label("Student Email:");
         emailLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #f1f5f9; -fx-font-weight: 600;");
         
@@ -123,15 +116,13 @@ public class Enrollement {
                 "-fx-text-fill: #f1f5f9; -fx-prompt-text-fill: #64748b; -fx-background-radius: 8; " +
                 "-fx-border-color: #3b82f6; -fx-border-width: 2; -fx-border-radius: 8;");
         emailField.setPrefWidth(400);
-
-        // Error label (initially hidden)
+        
         Label errorLabel = new Label();
         errorLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #ef4444; -fx-font-weight: 600;");
         errorLabel.setVisible(false);
 
         formContainer.getChildren().addAll(nameLabel, nameField, emailLabel, emailField, errorLabel);
-
-        // Buttons
+        
         HBox buttonBox = new HBox(15);
         buttonBox.setAlignment(Pos.CENTER);
 
@@ -144,8 +135,7 @@ public class Enrollement {
         cancelBtn.setPrefWidth(200);
 
         buttonBox.getChildren().addAll(nextBtn, cancelBtn);
-
-        // Event handlers
+        
         nextBtn.setOnAction(e -> {
             String name = nameField.getText().trim();
             String email = emailField.getText().trim();
@@ -161,30 +151,26 @@ public class Enrollement {
                 errorLabel.setVisible(true);
                 return;
             }
-
-            // Check if email already exists in database
+            
             if (isEmailExists(email)) {
                 errorLabel.setText("Student with this email is already enrolled in the database");
                 errorLabel.setVisible(true);
                 return;
             }
-
-            // Check if student already has face data enrolled
+            
             File studentDir = new File(Helper.baseImagePath + email);
             if (studentDir.exists() && studentDir.listFiles() != null && studentDir.listFiles().length > 0) {
                 errorLabel.setText("Student with this email already has face data enrolled");
                 errorLabel.setVisible(true);
                 return;
             }
-
-            // Insert student into database
+            
             if (!insertStudent(name, email)) {
                 errorLabel.setText("Failed to add student to database. Please try again.");
                 errorLabel.setVisible(true);
                 return;
             }
-
-            // Navigate to face capture scene
+            
             stage.setScene(createEnrollmentScene(stage, name, email));
         });
 
@@ -204,8 +190,7 @@ public class Enrollement {
         
         return scene;
     }
-    
-    // Updated method signature to accept both username and email
+        
     public static Scene createEnrollmentScene(Stage stage, String username, String email) {
         VBox mainContainer = new VBox(25);
         mainContainer.setStyle("-fx-background-color: #0f172a;");
@@ -267,20 +252,16 @@ public class Enrollement {
         
         return scene;
     }
-
-    // Updated method signature to accept both username and email
+    
     public static void startEnrollmentProcess(String username, String email, ImageView webcamView, Label statusLabel,
             Button enrollBtn, Button backBtn, Stage stage) {
         Helper.capturingMode = true;
-        
-        // Store email for folder creation
+                
         Helper.capturePersonEmail = email;
-        
-        // Store username for display purposes
+                
         Helper.capturePersonName = username;
         Helper.captureCount = 0;
-
-        // Create folder using email instead of username
+        
         File personDir = new File(Helper.baseImagePath + email);
         personDir.mkdirs();
         
@@ -363,8 +344,7 @@ public class Enrollement {
         Mat face = gray.submat(rect);
         Mat resizedFace = new Mat();
         Imgproc.resize(face, resizedFace, new Size(200, 200));
-
-        // Use email for the folder path instead of username
+        
         String fileName = Helper.baseImagePath + Helper.capturePersonEmail + "/face_" +
                 System.currentTimeMillis() + ".jpg";
         Imgcodecs.imwrite(fileName, resizedFace);
@@ -375,15 +355,12 @@ public class Enrollement {
         if (Helper.captureCount >= 8) {
             Helper.capturingMode = false;
             Helper.captureCount = 0;
-
-            // Load the newly captured images and compute histograms using email path
+            
             List<Mat> newImages = Loader.loadImages(Helper.baseImagePath + Helper.capturePersonEmail);
             List<Mat> newHistograms = Loader.computeHistograms(newImages);
-            
-            // Store histograms using email as key
+                        
             Helper.personHistograms.put(Helper.capturePersonEmail, newHistograms);
-            
-            // Release loaded images to free memory
+                        
             for (Mat img : newImages) {
                 img.release();
             }

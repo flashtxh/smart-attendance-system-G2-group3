@@ -1,58 +1,74 @@
 package dev.att.smartattendance.app.pages;
 
+import java.util.List;
+
 import org.opencv.core.Mat;
 import org.opencv.videoio.VideoCapture;
 
 import dev.att.smartattendance.app.Helper;
+import dev.att.smartattendance.model.group.Group;
+import dev.att.smartattendance.model.group.GroupDAO;
+import dev.att.smartattendance.model.professor.Professor;
+import dev.att.smartattendance.model.professor.ProfessorDAO;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 public class Home {
 
-    public static Scene createHomeScene(String username) {
-        // Main container
+    public static Scene createHomeScene(String username) {        
+        ProfessorDAO professorDAO = new ProfessorDAO();
+        Professor professor = professorDAO.get_professor_by_email(username);
+        
+        final String professorId;
+        final String displayName;
+        
+        if (professor != null) {
+            professorId = professor.getProfessor_id();
+            displayName = professor.getUsername();
+        } else {
+            professorId = null;
+            displayName = username;
+        }
+                
         VBox mainContainer = new VBox();
         mainContainer.setStyle("-fx-background-color: #0f172a;");
-
-        // Header section
+        
         VBox headerSection = new VBox(10);
         headerSection.setStyle(
                 "-fx-background-color: white; -fx-padding: 30; -fx-border-color: #e0e0e0; -fx-border-width: 0 0 1 0;");
         headerSection.setAlignment(Pos.CENTER);
-
-        // Title
+        
         Label titleLabel = new Label("SMART ATTENDANCE SYSTEM");
         titleLabel.setStyle("-fx-font-size: 32px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;");
-
-        // User avatar section
+        
         VBox avatarSection = new VBox(5);
         avatarSection.setAlignment(Pos.CENTER);
 
-        Label avatarLabel = new Label(username.substring(0, 1).toUpperCase());
+        Label avatarLabel = new Label(displayName.substring(0, 1).toUpperCase());
         avatarLabel.getStyleClass().add("avatar-circle");
 
-        Label usernameLabel = new Label(username);
+        Label usernameLabel = new Label(displayName);
         usernameLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #7f8c8d;");
 
         avatarSection.getChildren().addAll(avatarLabel, usernameLabel);
-
-        // Professor info section
+        
         VBox profSection = new VBox(2);
         profSection.setAlignment(Pos.CENTER_RIGHT);
-        Label profLabel = new Label("Prof. "+username);
+        Label profLabel = new Label("Prof. " + displayName);
         profLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #2c3e50;");
         profSection.getChildren().add(profLabel);
-
-        // Header layout
+        
         HBox headerTop = new HBox();
         headerTop.setAlignment(Pos.CENTER);
         javafx.scene.layout.Region leftSpacer = new javafx.scene.layout.Region();
@@ -62,13 +78,11 @@ public class Home {
 
         headerTop.getChildren().addAll(avatarSection, leftSpacer, titleLabel, rightSpacer, profSection);
         headerSection.getChildren().add(headerTop);
-
-        // Content section
+        
         VBox contentSection = new VBox(20);
         contentSection.setStyle("-fx-padding: 40;");
         contentSection.setAlignment(Pos.CENTER_LEFT);
-
-        // Current Semester section
+        
         HBox semesterSection = new HBox(10);
         semesterSection.setAlignment(Pos.CENTER_LEFT);
 
@@ -79,26 +93,50 @@ public class Home {
         semesterValue.setStyle("-fx-font-size: 16px; -fx-text-fill: #2c3e50; -fx-font-weight: bold;");
 
         semesterSection.getChildren().addAll(semesterLabel, semesterValue);
-
-        // Classes section
-        Label classLabel = new Label("Class you are belong to:");
+        
+        Label classLabel = new Label("Classes you teach:");
         classLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #7f8c8d;");
-
-        // Class buttons
-        HBox classButtons = new HBox(10);
+        
+        FlowPane classButtons = new FlowPane(10, 10);
         classButtons.setAlignment(Pos.CENTER_LEFT);
+        
+        GroupDAO groupDAO = new GroupDAO();
+        List<Group> professorGroups;
+        
+        if (professorId != null) {
+            professorGroups = groupDAO.get_groups_by_professor(professorId);
+        } else {            
+            professorGroups = groupDAO.get_all_groups();
+        }
 
-        Button cs102Btn = new Button("CS102");
-        Button is216Btn = new Button("IS216");
-        Button cs440Btn = new Button("CS440");
-
-        cs102Btn.getStyleClass().add("class-button");
-        is216Btn.getStyleClass().add("class-button");
-        cs440Btn.getStyleClass().add("class-button");
-
-        classButtons.getChildren().addAll(cs102Btn, is216Btn, cs440Btn);
-
-        // New Class and Enroll Student buttons row
+        if (professorGroups.isEmpty()) {
+            Label noClassesLabel = new Label("No classes assigned yet");
+            noClassesLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #94a3b8; -fx-font-style: italic;");
+            classButtons.getChildren().add(noClassesLabel);
+        } else {
+            for (Group group : professorGroups) {                
+                String buttonLabel = group.getcourse_code() + " (" + group.getGroup_name() + ")";
+                Button classBtn = new Button(buttonLabel);
+                classBtn.getStyleClass().add("class-button");
+                                
+                String tooltipText = group.getAcademic_year() + " " + group.getTerm();
+                classBtn.setStyle(classBtn.getStyle() + "-fx-tooltip: '" + tooltipText + "';");
+                                
+                classBtn.setOnAction(e -> {
+                    Helper.stopCamera();
+                    Stage stage = (Stage) classBtn.getScene().getWindow();
+                    stage.setScene(Class.createClassScene(
+                    group.getGroup_id(),      
+                    group.getGroup_name(),    
+                    displayName,              
+                        stage
+                    ));
+                });
+                
+                classButtons.getChildren().add(classBtn);
+            }
+        }
+        
         Button newClassBtn = new Button("New Class");
         newClassBtn.getStyleClass().add("new-class-button");
 
@@ -107,20 +145,18 @@ public class Home {
 
         HBox classRow = new HBox(20);
         classRow.setAlignment(Pos.CENTER_LEFT);
-        classRow.getChildren().addAll(classLabel, classButtons);
+        classRow.getChildren().addAll(classLabel);
 
         HBox actionButtonsRow = new HBox(15);
         actionButtonsRow.setAlignment(Pos.CENTER_RIGHT);
         actionButtonsRow.getChildren().addAll(enrollStudentBtn, newClassBtn);
 
-        contentSection.getChildren().addAll(semesterSection, classRow, actionButtonsRow);
-
-        // Bottom section with camera and logout
+        contentSection.getChildren().addAll(semesterSection, classRow, classButtons, actionButtonsRow);
+        
         VBox bottomSection = new VBox(20);
         bottomSection.setAlignment(Pos.CENTER);
         bottomSection.setStyle("-fx-padding: 20;");
-
-        // Camera view
+        
         ImageView webcamView = new ImageView();
         webcamView.setFitWidth(400);
         webcamView.setFitHeight(300);
@@ -129,8 +165,7 @@ public class Home {
 
         Label cameraLabel = new Label("Live Camera Feed (Optional)");
         cameraLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #7f8c8d;");
-
-        // Logout button
+        
         Button logoutButton = new Button("Logout");
         logoutButton.getStyleClass().add("logout-button");
 
@@ -144,47 +179,26 @@ public class Home {
 
         bottomSection.getChildren().addAll(cameraLabel, webcamView, logoutButton);
 
-        // Add event handlers for class buttons
-        cs102Btn.setOnAction(e -> {
-            Helper.stopCamera();
-            Stage stage = (Stage) cs102Btn.getScene().getWindow();
-            stage.setScene(Class.createClassScene("CS102", username, stage));
-        });
-        is216Btn.setOnAction(e -> {
-            Helper.stopCamera();
-            Stage stage = (Stage) is216Btn.getScene().getWindow();
-            stage.setScene(Class.createClassScene("IS216", username, stage));
-        });
-        cs440Btn.setOnAction(e -> {
-            Helper.stopCamera();
-            Stage stage = (Stage) cs440Btn.getScene().getWindow();
-            stage.setScene(Class.createClassScene("CS440", username, stage));
-        });
         newClassBtn.setOnAction(e -> Helper.showAlert("New Class", "Creating new class..."));
-
-        // Enroll Student button action - navigate to enrollment info page
+        
         enrollStudentBtn.setOnAction(e -> {
             Helper.stopCamera();
             Stage stage = (Stage) enrollStudentBtn.getScene().getWindow();
             stage.setScene(Enrollement.createEnrollmentInfoScene(stage));
         });
-
-        // Main layout
+        
         mainContainer.getChildren().addAll(headerSection, contentSection, bottomSection);
 
-        javafx.scene.control.ScrollPane scrollPane = new javafx.scene.control.ScrollPane(mainContainer);
+        ScrollPane scrollPane = new ScrollPane(mainContainer);
         scrollPane.setFitToWidth(true);
         scrollPane.setStyle("-fx-background-color: #0f172a;");
 
         Scene scene = new Scene(scrollPane, Helper.getScreenWidth(), Helper.getScreenHeight());
-
-        // Optional: Auto-start camera in home (disabled by default)
-        // Platform.runLater(() -> startSimpleCameraFeed(webcamView));
+                
         scene.getStylesheets().add(Home.class.getResource("/css/styles.css").toExternalForm());
         return scene;
     }
-
-    // Simple camera feed without face recognition (optional for home screen)
+    
     public static void startSimpleCameraFeed(ImageView imageView) {
         Helper.capture = new VideoCapture(0);
         if (!Helper.capture.isOpened()) {
