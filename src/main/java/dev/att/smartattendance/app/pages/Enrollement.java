@@ -320,12 +320,6 @@ public class Enrollement {
 
                         frameCounter++;
                     }
-
-                    try {
-                        Thread.sleep(33);
-                    } catch (InterruptedException e) {
-                        break;
-                    }
                 }
 
                 frame.release();

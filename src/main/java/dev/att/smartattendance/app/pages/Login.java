@@ -29,7 +29,6 @@ public class Login {
             System.out.println("Initialized " + Helper.userCredentials.size() + " user accounts (including professors)");
         } catch (Exception e) {
             System.err.println("Error loading professor credentials: " + e.getMessage());
-            e.printStackTrace();
         }
         System.out.println("Initialized " + Helper.userCredentials.size() + " user accounts");
     }

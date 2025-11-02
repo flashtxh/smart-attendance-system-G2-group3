@@ -32,9 +32,6 @@ import javafx.stage.Stage;
 
 public class TAManagement {
     
-    /**
-     * Scene for managing TAs assigned to a specific group
-     */
     public static Scene createManageTAsScene(Stage stage, String groupId, String groupName) {
         VBox mainContainer = new VBox(30);
         mainContainer.setStyle("-fx-background-color: #0f172a;");
@@ -93,9 +90,6 @@ public class TAManagement {
         return scene;
     }
     
-    /**
-     * Create a column showing either assigned or available TAs
-     */
     private static VBox createTAColumn(String title, String groupId, boolean showAssigned) {
         VBox column = new VBox(15);
         column.setStyle("-fx-background-color: #1e293b; -fx-padding: 25; " +
@@ -159,9 +153,6 @@ public class TAManagement {
         return column;
     }
     
-    /**
-     * Create a row for a single TA
-     */
     private static HBox createTARow(Professor ta, String groupId, boolean isAssigned) {
         HBox taRow = new HBox(15);
         taRow.setAlignment(Pos.CENTER_LEFT);
@@ -222,9 +213,6 @@ public class TAManagement {
         return taRow;
     }
     
-    /**
-     * Scene for adding a new TA to the system
-     */
     public static Scene createAddTAScene(Stage stage, String groupId, String groupName) {
         VBox mainContainer = new VBox(30);
         mainContainer.setStyle("-fx-background-color: #0f172a;");
@@ -356,8 +344,6 @@ public class TAManagement {
         
         return scene;
     }
-    
-    // Database helper methods
     
     private static Set<String> getAssignedTAIds(String groupId) {
         Set<String> assignedIds = new HashSet<>();

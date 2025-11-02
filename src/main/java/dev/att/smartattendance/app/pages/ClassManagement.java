@@ -498,8 +498,6 @@ public class ClassManagement {
                     "-fx-font-size: 14px; -fx-padding: 12 24; -fx-background-radius: 8; " +
                     "-fx-cursor: hand; -fx-font-weight: bold;");
         });
-        
-                // In ClassManagement.java, in buttonBox.getChildren().addAll(...):
 
         Button manageTAsButton = new Button("👥 Manage TAs");
         manageTAsButton.setStyle("-fx-background-color: #3b82f6; -fx-text-fill: white; " +

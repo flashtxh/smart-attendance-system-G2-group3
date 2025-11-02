@@ -388,12 +388,6 @@ public class Class {
                         Image imageToShow = Helper.mat2Image(Helper.currentFrame);
                         Platform.runLater(() -> imageView.setImage(imageToShow));
                     }
-
-                    // try {
-                    // Thread.sleep(33); 
-                    // } catch (InterruptedException e) {
-                    //     break;
-                    // }
                 }
 
                 frame.release();
