@@ -33,7 +33,7 @@ import ai.onnxruntime.OrtException;
 import ai.onnxruntime.OrtSession;
 import dev.att.smartattendance.app.Helper;
 import dev.att.smartattendance.app.Loader;
-import dev.att.smartattendance.app.customAlert.CustomAlert;
+import dev.att.smartattendance.app.pages.customAlert.CustomAlert;
 import dev.att.smartattendance.model.course.CourseDAO;
 import dev.att.smartattendance.model.group.Group;
 import dev.att.smartattendance.model.group.GroupDAO;

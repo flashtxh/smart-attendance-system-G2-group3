@@ -1,4 +1,4 @@
-package dev.att.smartattendance.app.customAlert;
+package dev.att.smartattendance.app.pages.customAlert;
 
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
