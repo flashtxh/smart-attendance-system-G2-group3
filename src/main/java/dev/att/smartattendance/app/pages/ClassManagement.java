@@ -40,31 +40,27 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 public class ClassManagement {
-    
-    // Create new class scene
+        
     public static Scene createNewClassScene(Stage stage) {
         VBox mainContainer = new VBox(30);
         mainContainer.setStyle("-fx-background-color: #0f172a;");
         mainContainer.setAlignment(Pos.TOP_CENTER);
         mainContainer.setPadding(new Insets(40));
-        
-        // Header
+                
         Label titleLabel = new Label("Create New Class");
         titleLabel.setStyle("-fx-font-size: 36px; -fx-font-weight: bold; " +
                 "-fx-text-fill: linear-gradient(from 0% 0% to 100% 0%, #60a5fa 0%, #a78bfa 100%);");
         
         Label subtitleLabel = new Label("Configure class details and assign students");
         subtitleLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #94a3b8;");
-        
-        // Form container
+                
         VBox formContainer = new VBox(25);
         formContainer.setStyle("-fx-background-color: #1e293b; -fx-padding: 40; " +
                 "-fx-background-radius: 15; -fx-border-color: #3b82f6; -fx-border-width: 2; " +
                 "-fx-border-radius: 15; -fx-effect: dropshadow(gaussian, rgba(59, 130, 246, 0.3), 20, 0, 0, 5);");
         formContainer.setAlignment(Pos.CENTER_LEFT);
         formContainer.setMaxWidth(800);
-        
-        // Course selection
+                
         Label courseLabel = new Label("Select Course:");
         courseLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #f1f5f9; -fx-font-weight: 600;");
         
@@ -81,8 +77,7 @@ public class ClassManagement {
             courseComboBox.getItems().add(displayText);
             courseMap.put(displayText, course.getCourse_code());
         }
-        
-        // Group name
+                
         Label groupNameLabel = new Label("Group Name:");
         groupNameLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #f1f5f9; -fx-font-weight: 600;");
         
@@ -91,8 +86,7 @@ public class ClassManagement {
         groupNameField.setStyle("-fx-font-size: 14px; -fx-padding: 12; -fx-pref-width: 400; " +
                 "-fx-background-color: #0f172a; -fx-text-fill: #f1f5f9; -fx-prompt-text-fill: #64748b; " +
                 "-fx-background-radius: 8; -fx-border-color: #3b82f6; -fx-border-width: 2; -fx-border-radius: 8;");
-        
-        // Professor selection
+                
         Label professorLabel = new Label("Assign Professor:");
         professorLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #f1f5f9; -fx-font-weight: 600;");
         
@@ -109,8 +103,7 @@ public class ClassManagement {
             professorComboBox.getItems().add(displayText);
             professorMap.put(displayText, prof.getProfessor_id());
         }
-        
-        // Academic year and term
+                
         HBox academicInfoBox = new HBox(20);
         
         VBox yearBox = new VBox(10);
@@ -137,8 +130,7 @@ public class ClassManagement {
         termBox.getChildren().addAll(termLabel, termComboBox);
         
         academicInfoBox.getChildren().addAll(yearBox, termBox);
-        
-        // Error label
+                
         Label errorLabel = new Label();
         errorLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #ef4444; -fx-font-weight: 600;");
         errorLabel.setVisible(false);
@@ -150,8 +142,7 @@ public class ClassManagement {
             academicInfoBox,
             errorLabel
         );
-        
-        // Buttons
+                
         HBox buttonBox = new HBox(15);
         buttonBox.setAlignment(Pos.CENTER);
         
@@ -164,8 +155,7 @@ public class ClassManagement {
         cancelButton.setPrefWidth(150);
         
         buttonBox.getChildren().addAll(nextButton, cancelButton);
-        
-        // Button actions
+                
         nextButton.setOnAction(e -> {
             String selectedCourse = courseComboBox.getValue();
             String groupName = groupNameField.getText().trim();
@@ -182,8 +172,7 @@ public class ClassManagement {
             
             String courseCode = courseMap.get(selectedCourse);
             String professorId = professorMap.get(selectedProfessor);
-            
-            // Navigate to student assignment page
+                        
             stage.setScene(createStudentAssignmentScene(stage, courseCode, groupName, 
                     professorId, academicYear, term));
         });
@@ -203,8 +192,7 @@ public class ClassManagement {
         
         return scene;
     }
-    
-    // Student assignment scene
+        
     public static Scene createStudentAssignmentScene(Stage stage, String courseCode, 
             String groupName, String professorId, String academicYear, String term) {
         
@@ -212,16 +200,14 @@ public class ClassManagement {
         mainContainer.setStyle("-fx-background-color: #0f172a;");
         mainContainer.setAlignment(Pos.TOP_CENTER);
         mainContainer.setPadding(new Insets(40));
-        
-        // Header
+                
         Label titleLabel = new Label("Assign Students to " + groupName);
         titleLabel.setStyle("-fx-font-size: 32px; -fx-font-weight: bold; " +
                 "-fx-text-fill: linear-gradient(from 0% 0% to 100% 0%, #60a5fa 0%, #a78bfa 100%);");
         
         Label courseInfoLabel = new Label("Course: " + courseCode + " | " + academicYear + " " + term);
         courseInfoLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #94a3b8;");
-        
-        // Student list container
+                
         VBox studentListContainer = new VBox(15);
         studentListContainer.setStyle("-fx-background-color: #1e293b; -fx-padding: 30; " +
                 "-fx-background-radius: 15; -fx-border-color: #3b82f6; -fx-border-width: 2; " +
@@ -229,8 +215,7 @@ public class ClassManagement {
         
         Label studentListTitle = new Label("Select Students:");
         studentListTitle.setStyle("-fx-font-size: 20px; -fx-text-fill: #f1f5f9; -fx-font-weight: bold;");
-        
-        // Search field
+                
         TextField searchField = new TextField();
         searchField.setPromptText("Search students by name or email...");
         searchField.setStyle("-fx-font-size: 14px; -fx-padding: 12; -fx-pref-width: 740; " +
@@ -239,13 +224,11 @@ public class ClassManagement {
         
         VBox studentCheckboxContainer = new VBox(12);
         studentCheckboxContainer.setStyle("-fx-padding: 15 0;");
-        
-        // Get all students
+                
         StudentDAO studentDAO = new StudentDAO();
         List<Student> allStudents = studentDAO.get_all_students();
         Map<String, CheckBox> studentCheckboxMap = new HashMap<>();
-        
-        // Create checkboxes for each student
+                
         for (Student student : allStudents) {
             if (student.getName().equalsIgnoreCase("Admin")) {
                 continue;
@@ -273,8 +256,7 @@ public class ClassManagement {
             studentRow.getChildren().addAll(checkBox, nameLabel, spacer, emailLabel);
             studentCheckboxContainer.getChildren().add(studentRow);
         }
-        
-        // Search functionality
+                
         searchField.textProperty().addListener((obs, oldVal, newVal) -> {
             String searchText = newVal.toLowerCase().trim();
             studentCheckboxContainer.getChildren().clear();
@@ -315,8 +297,7 @@ public class ClassManagement {
         studentScrollPane.setFitToWidth(true);
         studentScrollPane.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
         studentScrollPane.setMaxHeight(400);
-        
-        // Selection controls
+                
         HBox selectionControls = new HBox(15);
         selectionControls.setAlignment(Pos.CENTER_LEFT);
         
@@ -342,8 +323,7 @@ public class ClassManagement {
             studentCheckboxMap.values().forEach(cb -> cb.setSelected(false));
             selectedCountLabel.setText("Selected: 0 students");
         });
-        
-        // Update count on checkbox changes
+                
         studentCheckboxMap.values().forEach(cb -> {
             cb.selectedProperty().addListener((obs, oldVal, newVal) -> {
                 long count = studentCheckboxMap.values().stream().filter(CheckBox::isSelected).count();
@@ -353,8 +333,7 @@ public class ClassManagement {
         
         studentListContainer.getChildren().addAll(studentListTitle, searchField, 
                 selectionControls, studentScrollPane);
-        
-        // Action buttons
+                
         HBox buttonBox = new HBox(15);
         buttonBox.setAlignment(Pos.CENTER);
         
@@ -411,8 +390,7 @@ public class ClassManagement {
         
         return scene;
     }
-    
-    // Create class in database
+        
     private static boolean createClassWithStudents(String courseCode, String groupName, 
             String professorId, String academicYear, String term, List<String> studentIds) {
         
@@ -422,8 +400,7 @@ public class ClassManagement {
         try {
             conn = DatabaseManager.getConnection();
             conn.setAutoCommit(false);
-            
-            // Insert into groups table
+                        
             String groupSql = "INSERT INTO groups (group_id, group_name, course_code, professor_id, academic_year, term) " +
                             "VALUES (?, ?, ?, ?, ?, ?)";
             try (PreparedStatement ps = conn.prepareStatement(groupSql)) {
@@ -435,8 +412,7 @@ public class ClassManagement {
                 ps.setString(6, term);
                 ps.executeUpdate();
             }
-            
-            // Insert students into student_group table with enrollment date
+                        
             String studentGroupSql = "INSERT INTO student_group (student_id, group_id, enrollment_date) VALUES (?, ?, CURRENT_DATE)";
             try (PreparedStatement ps = conn.prepareStatement(studentGroupSql)) {
                 for (String studentId : studentIds) {
@@ -473,8 +449,7 @@ public class ClassManagement {
             }
         }
     }
-    
-    // Manage existing class scene
+        
     public static Scene createManageClassScene(Stage stage, String groupId) {
         GroupDAO groupDAO = new GroupDAO();
         Group group = null;
@@ -497,8 +472,7 @@ public class ClassManagement {
         mainContainer.setStyle("-fx-background-color: #0f172a;");
         mainContainer.setAlignment(Pos.TOP_CENTER);
         mainContainer.setPadding(new Insets(40));
-        
-        // Header
+                
         Label titleLabel = new Label("Manage Class: " + currentGroup.getGroup_name());
         titleLabel.setStyle("-fx-font-size: 32px; -fx-font-weight: bold; " +
                 "-fx-text-fill: linear-gradient(from 0% 0% to 100% 0%, #60a5fa 0%, #a78bfa 100%);");
@@ -506,39 +480,22 @@ public class ClassManagement {
         Label courseInfoLabel = new Label("Course: " + currentGroup.getcourse_code() + " | " + 
                 currentGroup.getAcademic_year() + " " + currentGroup.getTerm());
         courseInfoLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #94a3b8;");
-        
-        // Two columns: enrolled and available students
+                
         HBox contentBox = new HBox(30);
         contentBox.setAlignment(Pos.TOP_CENTER);
-        
-        // Enrolled students column
+                
         VBox enrolledColumn = createStudentColumn("Enrolled Students", groupId, true);
-        
-        // Available students column
+                
         VBox availableColumn = createStudentColumn("Available Students", groupId, false);
         
         contentBox.getChildren().addAll(enrolledColumn, availableColumn);
-        
-        // Action buttons
+                
         HBox buttonBox = new HBox(15);
         buttonBox.setAlignment(Pos.CENTER);
         
-        Button deleteClassButton = new Button("🗑 Delete Class");
-        // deleteClassButton.setStyle("-fx-background-color: #dc2626; -fx-text-fill: white; " +
-        //         "-fx-font-size: 14px; -fx-padding: 12 24; -fx-background-radius: 8; " +
-        //         "-fx-cursor: hand; -fx-font-weight: bold;");
-        
-        // deleteClassButton.setOnMouseEntered(e -> {
-        //     deleteClassButton.setStyle("-fx-background-color: #b91c1c; -fx-text-fill: white; " +
-        //             "-fx-font-size: 14px; -fx-padding: 12 24; -fx-background-radius: 8; " +
-        //             "-fx-cursor: hand; -fx-font-weight: bold; -fx-scale-x: 1.05; -fx-scale-y: 1.05;");
-        // });
-        
-        // deleteClassButton.setOnMouseExited(e -> {
-        //     deleteClassButton.setStyle("-fx-background-color: #dc2626; -fx-text-fill: white; " +
-        //             "-fx-font-size: 14px; -fx-padding: 12 24; -fx-background-radius: 8; " +
-        //             "-fx-cursor: hand; -fx-font-weight: bold;");
-        // });
+        Button deleteClassButton = new Button("🗑 Delete Class");                        
+                                                
+                                                
         deleteClassButton.setStyle("-fx-background-color: #ef6060ff; -fx-text-fill: white; " +
                 "-fx-font-size: 14px; -fx-padding: 12 24; -fx-background-radius: 8; " +
                 "-fx-cursor: hand; -fx-font-weight: bold;");
@@ -630,8 +587,7 @@ public class ClassManagement {
             HBox studentRow = createStudentRow(student, groupId, showEnrolled);
             studentList.getChildren().add(studentRow);
         }
-        
-        // Search functionality
+                
         searchField.textProperty().addListener((obs, oldVal, newVal) -> {
             String searchText = newVal.toLowerCase().trim();
             studentList.getChildren().clear();
@@ -693,8 +649,7 @@ public class ClassManagement {
                 success = removeStudentFromGroup(student.getStudent_id(), groupId);
                 if (success) {
                     CustomAlert.showSuccess("Student Removed", 
-                            student.getName() + " has been removed from the class.");
-                    // Refresh the scene
+                            student.getName() + " has been removed from the class.");                    
                     Stage stage = (Stage) actionButton.getScene().getWindow();
                     stage.setScene(createManageClassScene(stage, groupId));
                 }
@@ -702,8 +657,7 @@ public class ClassManagement {
                 success = addStudentToGroup(student.getStudent_id(), groupId);
                 if (success) {
                     CustomAlert.showSuccess("Student Added", 
-                            student.getName() + " has been added to the class.");
-                    // Refresh the scene
+                            student.getName() + " has been added to the class.");                    
                     Stage stage = (Stage) actionButton.getScene().getWindow();
                     stage.setScene(createManageClassScene(stage, groupId));
                 }
@@ -781,39 +735,34 @@ public class ClassManagement {
             return false;
         }
     }
-    
-    // Delete entire class with all related data
+        
     private static boolean deleteClass(String groupId) {
         Connection conn = null;
         try {
             conn = DatabaseManager.getConnection();
             conn.setAutoCommit(false);
-            
-            // Delete attendance records first (foreign key constraint)
+                        
             String deleteAttendanceSql = "DELETE FROM attendanceRecords WHERE group_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(deleteAttendanceSql)) {
                 ps.setString(1, groupId);
                 int attendanceDeleted = ps.executeUpdate();
                 System.out.println("Deleted " + attendanceDeleted + " attendance records");
             }
-            
-            // Delete attendance sessions
+                        
             String deleteSessionsSql = "DELETE FROM attendanceSessions WHERE group_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(deleteSessionsSql)) {
                 ps.setString(1, groupId);
                 int sessionsDeleted = ps.executeUpdate();
                 System.out.println("Deleted " + sessionsDeleted + " attendance sessions");
             }
-            
-            // Delete student enrollments
+                        
             String deleteEnrollmentsSql = "DELETE FROM student_group WHERE group_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(deleteEnrollmentsSql)) {
                 ps.setString(1, groupId);
                 int enrollmentsDeleted = ps.executeUpdate();
                 System.out.println("Deleted " + enrollmentsDeleted + " student enrollments");
             }
-            
-            // Finally delete the group itself
+                        
             String deleteGroupSql = "DELETE FROM groups WHERE group_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(deleteGroupSql)) {
                 ps.setString(1, groupId);

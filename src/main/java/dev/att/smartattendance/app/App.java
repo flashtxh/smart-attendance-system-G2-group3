@@ -49,31 +49,6 @@ public class App extends Application {
 
     public static void main(String[] args) {
         launch(args);
-        // CropDemo.main(args);
-        // RecognitionDemo.main(args);
-
-        // ProfessorDAO pdao = new ProfessorDAO();
-        // for(String prof : pdao.get_all_professors()) {
-        // System.out.println(prof);
-        // }
-        // Professor kyong = pdao.get_professor_by_email("kyong@smu.edu.sg");
-        // System.out.println(kyong);
-
-        // CourseDAO cdao = new CourseDAO();
-        // for(Course course : cdao.get_all_courses()) {
-        // System.out.println(course);
-        // }
-
-        // GroupDAO gdao = new GroupDAO();
-        // for(Group group : gdao.get_all_groups()) {
-        // System.out.println(group);
-        // }
-
-        // StudentDAO sdao = new StudentDAO();
-        // for(Student student : sdao.get_all_students()) {
-        // System.out.println(student);
-        // }
-
     }
 
     @Override
