@@ -74,7 +74,16 @@ public class Class {
         headerSection.getStyleClass().add("home-header");
         headerSection.setAlignment(Pos.CENTER);
         
-        Label titleLabel = new Label(groupName + " ("+groupId+")" + " - Attendance");
+        GroupDAO groupDAO = new GroupDAO();
+        String courseCode = "N/A";
+        for (Group g : groupDAO.get_all_groups()) {
+            if (g.getGroup_id().equals(groupId)) {
+                courseCode = g.getcourse_code();
+                break;
+            }
+        }
+
+        Label titleLabel = new Label(courseCode + " (" + groupName + ") - Attendance");
         titleLabel.getStyleClass().add("home-title");
         
         Button backButton = new Button("← Back to Home");
