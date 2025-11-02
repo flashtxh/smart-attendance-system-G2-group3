@@ -17,14 +17,14 @@ import javafx.stage.Stage;
 
 public class App extends Application {
 
-    @SuppressWarnings("unused")private VideoCapture capture;
+    private VideoCapture capture;
     @SuppressWarnings("unused")private volatile boolean cameraActive = false;
     @SuppressWarnings("unused")private CascadeClassifier faceDetector;
     @SuppressWarnings("unused")private final Map<String, List<Mat>> personHistograms = new HashMap<>();
     @SuppressWarnings("unused")private final Map<String, String> userCredentials = new HashMap<>(); // username -> password
     @SuppressWarnings("unused")private  Mat currentFrame;
     @SuppressWarnings("unused")private final String baseImagePath = "src/main/resources/images/";
-    @SuppressWarnings("unused")private final String cascadePath = "src/main/resources/fxml/haarcascade_frontalface_alt.xml";
+    private final String cascadePath = "src/main/resources/fxml/haarcascade_frontalface_alt.xml";
 
     @SuppressWarnings("unused")private final int captureCount = 0;
     @SuppressWarnings("unused")private final String capturePersonName = "";
