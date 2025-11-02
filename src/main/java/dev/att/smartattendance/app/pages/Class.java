@@ -3,6 +3,7 @@ package dev.att.smartattendance.app.pages;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.FloatBuffer;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfRect;
 import org.opencv.core.Point;
@@ -25,6 +27,11 @@ import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.videoio.VideoCapture;
 
+import ai.onnxruntime.OnnxTensor;
+import ai.onnxruntime.OrtEnvironment;
+import ai.onnxruntime.OrtException;
+import ai.onnxruntime.OrtSession;
+import dev.att.smartattendance.app.CustomAlert;
 import dev.att.smartattendance.app.Helper;
 import dev.att.smartattendance.app.Loader;
 import dev.att.smartattendance.model.group.Group;
@@ -189,7 +196,8 @@ public class Class {
 
         saveButton.setOnAction(e -> {
             saveAttendance(groupId, groupName);
-            Helper.showAlert("Success", "Attendance saved successfully for " + groupName + "!");
+            // Helper.showAlert("Success", "Attendance saved successfully for " + groupId + "!");
+            CustomAlert.showSuccess("Success", "Attendance saved successfully for " + groupName + "!");
         });
 
         exportButton.setOnAction(e -> {
@@ -256,6 +264,20 @@ public class Class {
             return;
         }
         Helper.cameraActive = true;
+        
+        // Load mask detection model
+        OrtEnvironment env;
+        OrtSession session;
+        try {
+            env = OrtEnvironment.getEnvironment();
+            OrtSession.SessionOptions opts = new OrtSession.SessionOptions();
+            session = env.createSession("src/main/resources/models/mask_detector.onnx", opts);
+            System.out.println("✓ Mask detector model loaded.");
+        } catch (OrtException e) {
+            e.printStackTrace();
+            Platform.runLater(() -> statusLabel.setText("Failed to load mask detection model"));
+            return;
+        }
 
         Platform.runLater(() -> statusLabel.setText("Camera active - Position yourself in front of camera"));
 
@@ -280,55 +302,82 @@ public class Class {
 
                         if (faceArray.length > 0) {
                             for (Rect rect : faceArray) {
-                                Mat face = gray.submat(rect);
-                                Mat resizedFace = new Mat();
-                                Imgproc.resize(face, resizedFace, new Size(200, 200));
-                                
-                                String recognizedEmail = Helper.recognizeFace(resizedFace);
-                                
-                                if (recognizedEmail.equals(lastDetectedEmail) && !recognizedEmail.equals("Unknown")) {
-                                    consecutiveDetections++;
+                                Mat faceROI = new Mat(frame, rect);
+                                Mat resized = new Mat();
+                                Imgproc.cvtColor(faceROI, resized, Imgproc.COLOR_BGR2RGB);
+                                Imgproc.resize(resized, resized, new Size(224, 224));
+                                resized.convertTo(resized, CvType.CV_32FC3, 1.0 / 255.0);
+                                float[] nhwc = new float[224 * 224 * 3];
+                                resized.get(0, 0, nhwc);
+                                boolean maskDetected = false;
+
+                                try (OnnxTensor inputTensor = OnnxTensor.createTensor(env, FloatBuffer.wrap(nhwc), new long[]{1, 224, 224, 3});
+                                    OrtSession.Result result = session.run(Map.of(session.getInputNames().iterator().next(), inputTensor))) {
+                                    float[][] probs = (float[][]) result.get(0).getValue();
+                                    maskDetected = probs[0][0] > probs[0][1];
+                                } catch (OrtException e) {
+                                    e.printStackTrace();
+                                }
+
+                                if (maskDetected) {
+                                    // MASK DETECTED - Draw red box and warning
+                                    Imgproc.rectangle(Helper.currentFrame, rect.tl(), rect.br(), new Scalar(0, 0, 255), 3);
+                                    Imgproc.putText(Helper.currentFrame, "Mask Detected - Remove Mask", 
+                                            new Point(rect.x, rect.y - 10),
+                                            Imgproc.FONT_HERSHEY_SIMPLEX, 0.8, new Scalar(0, 0, 255), 2);
                                 } else {
-                                    consecutiveDetections = 1;
-                                    lastDetectedEmail = recognizedEmail;
-                                }
-                                
-                                String studentName = Helper.emailToNameMap.get(recognizedEmail);
-                                if (studentName == null) {                                    
-                                    studentName = recognizedEmail.equals("Unknown") ? "Unknown" : recognizedEmail;
-                                }
-                                
-                                // Mark attendance if detected reliably
-                                if (consecutiveDetections >= 5 && !recognizedEmail.equals("Unknown")) {
+                                    // NO MASK - Proceed with normal face recognition
+                                    Mat face = gray.submat(rect);
+                                    Mat resizedFace = new Mat();
+                                    Imgproc.resize(face, resizedFace, new Size(200, 200));
                                     
-                                    CheckBox checkBox = studentCheckboxes.get(studentName);
+                                    String recognizedEmail = Helper.recognizeFace(resizedFace);
                                     
-                                    // Only mark if checkbox exists and is NOT already checked
-                                    if (checkBox != null && !checkBox.isSelected()) {
-                                        String finalStudentName = studentName;
-                                        Platform.runLater(() -> markStudentPresent(finalStudentName, statusLabel));
-                                        consecutiveDetections = 0;
+                                    if (recognizedEmail.equals(lastDetectedEmail) && !recognizedEmail.equals("Unknown")) {
+                                        consecutiveDetections++;
+                                    } else {
+                                        consecutiveDetections = 1;
+                                        lastDetectedEmail = recognizedEmail;
                                     }
+                                    
+                                    String studentName = Helper.emailToNameMap.get(recognizedEmail);
+                                    if (studentName == null) {                                    
+                                        studentName = recognizedEmail.equals("Unknown") ? "Unknown" : recognizedEmail;
+                                    }
+                                    
+                                    // Mark attendance if detected reliably and checkbox not already checked
+                                    if (consecutiveDetections >= 5 && !recognizedEmail.equals("Unknown")) {
+                                        CheckBox checkBox = studentCheckboxes.get(studentName);
+                                        
+                                        if (checkBox != null && !checkBox.isSelected()) {
+                                            String finalStudentName = studentName;
+                                            Platform.runLater(() -> markStudentPresent(finalStudentName, statusLabel));
+                                            consecutiveDetections = 0;
+                                        }
+                                    }
+                                    
+                                    Scalar color = studentName.equals("Unknown") 
+                                        ? new Scalar(255, 165, 0) 
+                                        : new Scalar(0, 255, 0);
+
+                                    Imgproc.rectangle(Helper.currentFrame, new Point(rect.x, rect.y),
+                                            new Point(rect.x + rect.width, rect.y + rect.height),
+                                            color, 3);
+
+                                    String displayText = studentName.equals("Unknown") 
+                                            ? "Unknown Person" 
+                                            : studentName;
+                                    
+                                    Imgproc.putText(Helper.currentFrame, displayText,
+                                            new Point(rect.x, rect.y - 10),
+                                            Imgproc.FONT_HERSHEY_SIMPLEX, 0.9, color, 2);
+
+                                    resizedFace.release();
+                                    face.release();
                                 }
                                 
-                                Scalar color = studentName.equals("Unknown") 
-                                    ? new Scalar(255, 165, 0)  
-                                    : new Scalar(0, 255, 0);   
-
-                                Imgproc.rectangle(Helper.currentFrame, new Point(rect.x, rect.y),
-                                        new Point(rect.x + rect.width, rect.y + rect.height),
-                                        color, 3);
-
-                                String displayText = studentName.equals("Unknown") 
-                                        ? "Unknown Person" 
-                                        : studentName;
-                                
-                                Imgproc.putText(Helper.currentFrame, displayText,
-                                        new Point(rect.x, rect.y - 10),
-                                        Imgproc.FONT_HERSHEY_SIMPLEX, 0.9, color, 2);
-
-                                resizedFace.release();
-                                face.release();
+                                resized.release();
+                                faceROI.release();
                             }
                         }
 
@@ -337,7 +386,7 @@ public class Class {
                     }
 
                     try {
-                    Thread.sleep(33); 
+                        Thread.sleep(33); // ~30 FPS
                     } catch (InterruptedException e) {
                         break;
                     }
@@ -375,15 +424,7 @@ public class Class {
             statusLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #f39c12; -fx-font-weight: bold;");
         }
     }
-
-    // private static void saveAttendance(String groupId, String groupName) {
-    //     System.out.println("Saving attendance for group: " + groupName + " (ID: " + groupId + ")");
-    //     for (Map.Entry<String, CheckBox> entry : studentCheckboxes.entrySet()) {
-    //         String studentName = entry.getKey();
-    //         boolean present = entry.getValue().isSelected();
-    //         System.out.println(studentName + ": " + (present ? "Present" : "Absent"));
-    //     }        
-    // }
+                                
     private static void saveAttendance(String groupId, String groupName) {
         System.out.println("Saving attendance for group: " + groupName + " (ID: " + groupId + ")");
         
@@ -392,9 +433,8 @@ public class Class {
         Connection conn = null;
         try {
             conn = DatabaseManager.getConnection();
-            conn.setAutoCommit(false); // Start transaction
-            
-            // Step 1: Check if session exists
+            conn.setAutoCommit(false); 
+                        
             String checkSessionSql = "SELECT COUNT(*) FROM attendanceSessions WHERE group_id = ? AND date = ?";
             boolean sessionExists = false;
             
@@ -406,13 +446,10 @@ public class Class {
                     sessionExists = true;
                 }
             }
-            
-            // Step 2: Insert or update session
-            if (sessionExists) {
-                // Session exists - could update metadata here if needed
+                        
+            if (sessionExists) {                
                 System.out.println("Updating existing session for " + groupId + " on " + currentDate);
-            } else {
-                // Create new session
+            } else {                
                 String sessionSql = "INSERT INTO attendanceSessions (group_id, date, start_time, end_time, session_type) " +
                                 "VALUES (?, ?, NULL, NULL, NULL)";
                 
@@ -423,13 +460,11 @@ public class Class {
                     System.out.println("Created new attendance session for " + groupId + " on " + currentDate);
                 }
             }
-            
-            // Step 3: Get all students for this group
+                        
             List<Student> students = getStudentsForGroup(groupId);
             int savedCount = 0;
             int updatedCount = 0;
-            
-            // Step 4: Insert or update attendance records for each student
+                        
             String upsertRecordSql = "INSERT INTO attendanceRecords (group_id, date, student_id, status) " +
                                     "VALUES (?, ?, ?, ?) " +
                                     "ON CONFLICT(group_id, date, student_id) " +
@@ -438,17 +473,14 @@ public class Class {
             try (PreparedStatement recordPs = conn.prepareStatement(upsertRecordSql)) {
                 for (Student student : students) {
                     String studentName = student.getName();
-                    
-                    // Skip Admin
+                                        
                     if (studentName.equalsIgnoreCase("Admin")) {
                         continue;
                     }
-                    
-                    // Get attendance status from checkbox
+                                        
                     CheckBox checkBox = studentCheckboxes.get(studentName);
                     String status = (checkBox != null && checkBox.isSelected()) ? "Present" : "Absent";
-                    
-                    // Upsert record (insert or update if exists)
+                                        
                     recordPs.setString(1, groupId);
                     recordPs.setString(2, currentDate);
                     recordPs.setString(3, student.getStudent_id());
@@ -465,8 +497,7 @@ public class Class {
                     System.out.println(studentName + " (" + student.getEmail() + "): " + status);
                 }
             }
-            
-            // Commit transaction
+                        
             conn.commit();
             
             String message = sessionExists 
@@ -477,8 +508,7 @@ public class Class {
         } catch (SQLException e) {
             System.err.println("Failed to save attendance: " + e.getMessage());
             e.printStackTrace();
-            
-            // Rollback on error
+                        
             if (conn != null) {
                 try {
                     conn.rollback();
@@ -487,8 +517,7 @@ public class Class {
                     System.err.println("Failed to rollback: " + ex.getMessage());
                 }
             }
-            
-            // Show error to user
+                        
             Platform.runLater(() -> 
                 Helper.showAlert("Save Error", "Failed to save attendance to database:\n" + e.getMessage())
             );
@@ -496,7 +525,7 @@ public class Class {
         } finally {
             if (conn != null) {
                 try {
-                    conn.setAutoCommit(true); // Reset auto-commit
+                conn.setAutoCommit(true); 
                     conn.close();
                 } catch (SQLException e) {
                     System.err.println("Failed to close connection: " + e.getMessage());
@@ -507,8 +536,7 @@ public class Class {
 
     private static void loadExistingAttendance(String groupId, List<Student> students) {
         String currentDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-        
-        // Create a map of student_id to student name for easy lookup
+                
         Map<String, String> studentIdToName = new HashMap<>();
         for (Student student : students) {
             studentIdToName.put(student.getStudent_id(), student.getName());
@@ -530,8 +558,7 @@ public class Class {
             while (rs.next()) {
                 String studentId = rs.getString("student_id");
                 String status = rs.getString("status");
-                
-                // Get student name from the map
+                                
                 String studentName = studentIdToName.get(studentId);
                 
                 if (studentName != null && !studentName.equalsIgnoreCase("Admin")) {
@@ -583,9 +610,12 @@ public class Class {
         if (file != null) {
             try {
                 writeAttendanceCSV(file, groupId, groupName);
-                Helper.showAlert("Export Success", "Attendance exported successfully to:\n" + file.getAbsolutePath());
+                // Helper.showAlert("Export Success", "Attendance exported successfully to:\n" + file.getAbsolutePath());
+                CustomAlert.showSuccess("Export Success", "Attendance exported successfully to:\n" + file.getAbsolutePath());
             } catch (IOException ex) {
-                Helper.showAlert("Export Error", "Failed to export attendance:\n" + ex.getMessage());
+                // Helper.showAlert("Export Error", "Failed to export attendance:\n" + ex.getMessage());
+                CustomAlert.showError("Export Error", "Failed to export attendance:\n" + ex.getMessage());
+
                 ex.printStackTrace();
             }
         }
