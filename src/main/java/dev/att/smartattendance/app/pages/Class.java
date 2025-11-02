@@ -1,7 +1,21 @@
 package dev.att.smartattendance.app.pages;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.nio.FloatBuffer;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
@@ -18,360 +32,270 @@ import ai.onnxruntime.OrtEnvironment;
 import ai.onnxruntime.OrtException;
 import ai.onnxruntime.OrtSession;
 import dev.att.smartattendance.app.Helper;
+import dev.att.smartattendance.app.Loader;
+import dev.att.smartattendance.app.pages.customAlert.CustomAlert;
+import dev.att.smartattendance.model.course.CourseDAO;
+import dev.att.smartattendance.model.group.Group;
+import dev.att.smartattendance.model.group.GroupDAO;
+import dev.att.smartattendance.model.student.Student;
+import dev.att.smartattendance.model.student.StudentDAO;
+import dev.att.smartattendance.util.DatabaseManager;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 public class Class {
-
-    private static void showAlert(String title, String message) {
-        Platform.runLater(() -> {
-            Alert alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setTitle(title);
-            alert.setHeaderText(null);
-            alert.setContentText(message);
-            alert.showAndWait();
-        });
-    }
-
-    public static Scene createClassScene(String className, String username, Stage stage) {
-        // Main container
+        
+    private final static Map<String, CheckBox> studentCheckboxes = new HashMap<>();
+    private final static Map<String, Label> studentStatusLabels = new HashMap<>();
+    private final static Set<String> detectedStudentsInThisSession = new HashSet<>();
+        
+    public static Scene createClassScene(String groupId, String groupName, String username, Stage stage) {        
+        studentCheckboxes.clear();
+        studentStatusLabels.clear();
+        detectedStudentsInThisSession.clear();
+                
         VBox mainContainer = new VBox();
-        mainContainer.setStyle("-fx-background-color: #f5f5f5;");
-
-        // Header section (same as before)
+        mainContainer.setStyle("-fx-background-color: #0f172a;");
+        
         VBox headerSection = new VBox(10);
-        headerSection.setStyle(
-                "-fx-background-color: white; -fx-padding: 30; -fx-border-color: #e0e0e0; -fx-border-width: 0 0 1 0;");
+        headerSection.getStyleClass().add("home-header");
         headerSection.setAlignment(Pos.CENTER);
+        
+        GroupDAO groupDAO = new GroupDAO();
+        String courseCode = "N/A";
+        for (Group g : groupDAO.get_all_groups()) {
+            if (g.getGroup_id().equals(groupId)) {
+                courseCode = g.getcourse_code();
+                break;
+            }
+        }
+        CourseDAO courseDAO = new CourseDAO();
+        String courseCode2 = courseDAO.getCourseCodeById(courseCode);
 
-        Label titleLabel = new Label("SMART ATTENDANCE SYSTEM");
-        titleLabel.setStyle("-fx-font-size: 32px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;");
+        Label titleLabel = new Label(courseCode2 + " (" + groupName + ") - Attendance");
+        titleLabel.getStyleClass().add("home-title");
+        
+        Button backButton = new Button("← Back to Home");
+        backButton.getStyleClass().add("back-button");
 
-        // User avatar section
-        VBox avatarSection = new VBox(5);
-        avatarSection.setAlignment(Pos.CENTER);
+        backButton.setOnAction(e -> {
+            Helper.stopCamera();
+            stage.setScene(Home.createHomeScene(Helper.loggedInUsername));
+        });
 
-        Label avatarLabel = new Label(username.substring(0, 1).toUpperCase());
-        avatarLabel.setStyle("-fx-background-color: #7f8c8d; -fx-text-fill: white; -fx-font-size: 20px; " +
-                "-fx-font-weight: bold; -fx-min-width: 50; -fx-min-height: 50; " +
-                "-fx-max-width: 50; -fx-max-height: 50; -fx-background-radius: 25; " +
-                "-fx-alignment: center;");
-
-        Label usernameLabel = new Label(username);
-        usernameLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #7f8c8d;");
-
-        avatarSection.getChildren().addAll(avatarLabel, usernameLabel);
-
-        // Professor info
-        VBox profSection = new VBox(2);
-        profSection.setAlignment(Pos.CENTER_RIGHT);
-        Label profLabel = new Label("Prof. ZHANG Zhiyuan");
-        profLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #2c3e50;");
-        profSection.getChildren().add(profLabel);
-
-        // Header layout
         HBox headerTop = new HBox();
-        headerTop.setAlignment(Pos.CENTER);
-        javafx.scene.layout.Region leftSpacer = new javafx.scene.layout.Region();
-        javafx.scene.layout.Region rightSpacer = new javafx.scene.layout.Region();
-        HBox.setHgrow(leftSpacer, javafx.scene.layout.Priority.ALWAYS);
-        HBox.setHgrow(rightSpacer, javafx.scene.layout.Priority.ALWAYS);
+        headerTop.setAlignment(Pos.CENTER_LEFT);
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        headerTop.getChildren().addAll(backButton, spacer, titleLabel, new Region());
 
-        headerTop.getChildren().addAll(avatarSection, leftSpacer, titleLabel, rightSpacer, profSection);
         headerSection.getChildren().add(headerTop);
 
-        // Content section with navigation
-        VBox contentSection = new VBox(20);
-        contentSection.setStyle("-fx-padding: 40;");
-        contentSection.setAlignment(Pos.CENTER_LEFT);
-
-        // Navigation elements (semester, class buttons, etc.)
-        HBox semesterSection = new HBox(10);
-        semesterSection.setAlignment(Pos.CENTER_LEFT);
-
-        Label semesterLabel = new Label("Current Semester:");
-        semesterLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #7f8c8d;");
-
-        Label semesterValue = new Label("AY 25/26 Sem 1 ▼");
-        semesterValue.setStyle("-fx-font-size: 16px; -fx-text-fill: #2c3e50; -fx-font-weight: bold;");
-
-        semesterSection.getChildren().addAll(semesterLabel, semesterValue);
-
-        // Class buttons with current class highlighted
-        HBox classSection = new HBox(15);
-        classSection.setAlignment(Pos.CENTER_LEFT);
-
-        Label classLabel = new Label("Class you are belong to:");
-        classLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #7f8c8d;");
-
-        HBox classButtons = new HBox(10);
-        classButtons.setAlignment(Pos.CENTER_LEFT);
-
-        Button cs102Btn = new Button("CS102");
-        Button is216Btn = new Button("IS216");
-        Button cs440Btn = new Button("CS440");
-
-        String buttonStyle = "-fx-background-color: #ecf0f1; -fx-text-fill: #2c3e50; " +
-                "-fx-border-color: #bdc3c7; -fx-border-width: 1; -fx-border-radius: 5; " +
-                "-fx-background-radius: 5; -fx-padding: 8 16; -fx-font-size: 14px;";
-
-        String activeButtonStyle = "-fx-background-color: #3498db; -fx-text-fill: white; " +
-                "-fx-border-color: #2980b9; -fx-border-width: 1; -fx-border-radius: 5; " +
-                "-fx-background-radius: 5; -fx-padding: 8 16; -fx-font-size: 14px;";
-
-        cs102Btn.setStyle(className.equals("CS102") ? activeButtonStyle : buttonStyle);
-        is216Btn.setStyle(className.equals("IS216") ? activeButtonStyle : buttonStyle);
-        cs440Btn.setStyle(className.equals("CS440") ? activeButtonStyle : buttonStyle);
-
-        classButtons.getChildren().addAll(cs102Btn, is216Btn, cs440Btn);
-
-        // Group and Week section - REPLACE THE ENTIRE SECTION
-        HBox groupWeekSection = new HBox(20);
-        groupWeekSection.setAlignment(Pos.CENTER_LEFT);
-
-        Label groupLabel = new Label("Group: 3");
-        groupLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #7f8c8d;");
-
-        // Create week dropdown directly here
-        HBox weekBox = new HBox(5);
-        weekBox.setAlignment(Pos.CENTER_LEFT);
-
-        Label weekText = new Label("Week:");
-        weekText.setStyle("-fx-font-size: 16px; -fx-text-fill: #7f8c8d;");
-
-        javafx.scene.control.ComboBox<String> weekDropdown = new javafx.scene.control.ComboBox<>();
-        weekDropdown.getItems().addAll("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15",
-                "16");
-        weekDropdown.setValue("1"); // Default selection
-        weekDropdown.setStyle(
-                "-fx-font-size: 16px; -fx-background-color: white; -fx-border-color: #bdc3c7; -fx-border-width: 1; -fx-border-radius: 5;");
-        weekDropdown.setPrefWidth(80);
-
-        weekBox.getChildren().addAll(weekText, weekDropdown);
-
-        // Add to groupWeekSection
-        groupWeekSection.getChildren().addAll(groupLabel, weekBox);
-
-        Button exportBtn = new Button("Export");
-        exportBtn.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; " +
-                "-fx-border-radius: 5; -fx-background-radius: 5; " +
-                "-fx-padding: 8 16; -fx-font-size: 14px;");
-
-        HBox exportRow = new HBox();
-        exportRow.setAlignment(Pos.CENTER_RIGHT);
-        exportRow.getChildren().add(exportBtn);
-
-        // Add event handler for week dropdown
-        weekDropdown.setOnAction(e -> {
-            String selectedWeek = weekDropdown.getValue();
-            System.out.println("Selected week: " + selectedWeek);
-            showAlert("Week Changed", "Switched to Week " + selectedWeek + " for " + className);
-        });
-
-        contentSection.getChildren().addAll(semesterSection,
-                new HBox(20, classLabel, classButtons),
-                exportRow,
-                groupWeekSection);
-
-        // Main content area with student list and camera side by side
-        HBox mainContentArea = new HBox(30);
-        mainContentArea.setStyle("-fx-padding: 40;");
-        mainContentArea.setAlignment(Pos.TOP_CENTER);
-
-        // Student list section (left side)
-        VBox studentSection = new VBox(15);
-        studentSection.setPrefWidth(400);
-
-        Label studentListTitle = new Label("student list");
-        studentListTitle.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;");
-
-        VBox studentList = new VBox(5);
-        studentList.setStyle(
-                "-fx-background-color: white; -fx-padding: 20; -fx-border-color: #e0e0e0; -fx-border-width: 1;");
-
-        String[] students = { "Anson", "Naren", "Flash", "Minuk", "Jiale", "Eugene", "Geri" };
-        boolean[] attendance = { true, false, true, false, true, false, true };
-
-        for (int i = 0; i < students.length; i++) {
-            HBox studentRow = new HBox(10);
-            studentRow.setAlignment(Pos.CENTER_LEFT);
-
-            Label numberLabel = new Label((i + 1) + ".");
-            numberLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #2c3e50; -fx-min-width: 20;");
-
-            Label nameLabel = new Label(students[i]);
-            nameLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #2c3e50; -fx-min-width: 100;");
-
-            javafx.scene.control.CheckBox attendanceBox = new javafx.scene.control.CheckBox();
-            attendanceBox.setSelected(attendance[i]);
-
-            studentRow.getChildren().addAll(numberLabel, nameLabel, attendanceBox);
-            studentList.getChildren().add(studentRow);
-        }
-
-        studentSection.getChildren().addAll(studentListTitle, studentList);
-
-        // Camera section (right side)
+        HBox contentSection = new HBox(30);
+        contentSection.setStyle("-fx-padding: 40; -fx-background-color: #0f172a;");
+        contentSection.setAlignment(Pos.TOP_CENTER);
+        
         VBox cameraSection = new VBox(15);
+        cameraSection.getStyleClass().add("camera-section");
         cameraSection.setAlignment(Pos.CENTER);
-        cameraSection.setPrefWidth(500);
+        cameraSection.setMinWidth(500);
 
-        Label cameraTitle = new Label("Live Face Recognition");
-        cameraTitle.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;");
+        Label cameraTitle = new Label("Live Face Detection");
+        cameraTitle.getStyleClass().add("camera-title");
 
-        // Camera view
-        ImageView cameraView = new ImageView();
-        cameraView.setFitWidth(450);
-        cameraView.setFitHeight(350);
-        cameraView.setPreserveRatio(true);
-        cameraView.setStyle("-fx-border-color: #bdc3c7; -fx-border-width: 2; -fx-background-color: #f8f9fa;");
+        ImageView webcamView = new ImageView();
+        webcamView.setFitWidth(450);
+        webcamView.setFitHeight(350);
+        webcamView.setPreserveRatio(true);
+        webcamView.getStyleClass().add("camera-view");
 
-        // Camera controls
-        HBox cameraControls = new HBox(10);
-        cameraControls.setAlignment(Pos.CENTER);
+        Label detectionStatus = new Label("Starting camera...");
+        detectionStatus.getStyleClass().add("detection-status");
+        detectionStatus.setWrapText(true);
+        detectionStatus.setMaxWidth(450);
+        detectionStatus.setAlignment(Pos.CENTER);
 
-        Button startCameraBtn = new Button("Start Camera");
-        startCameraBtn.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; " +
-                "-fx-border-radius: 5; -fx-background-radius: 5; " +
-                "-fx-padding: 8 16; -fx-font-size: 14px;");
+        cameraSection.getChildren().addAll(cameraTitle, webcamView, detectionStatus);
+        
+        VBox attendanceSection = new VBox(15);
+        attendanceSection.getStyleClass().add("attendance-section");
+        attendanceSection.setMinWidth(500);
 
-        Button stopCameraBtn = new Button("Stop Camera");
-        stopCameraBtn.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; " +
-                "-fx-border-radius: 5; -fx-background-radius: 5; " +
-                "-fx-padding: 8 16; -fx-font-size: 14px;");
+        Label attendanceTitle = new Label("Student Attendance List");
+        attendanceTitle.getStyleClass().add("attendance-title");
 
-        Button markAttendanceBtn = new Button("Mark Attendance");
-        markAttendanceBtn.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; " +
-                "-fx-border-radius: 5; -fx-background-radius: 5; " +
-                "-fx-padding: 8 16; -fx-font-size: 14px;");
+        Label sessionLabel = new Label("Session: Week 10 - November 2, 2025");
+        sessionLabel.getStyleClass().add("session-label");
+        
+        VBox studentList = new VBox(12);
+        studentList.setStyle("-fx-padding: 15 0;");
+        
+        List<Student> students = getStudentsForGroup(groupId);
 
-        cameraControls.getChildren().addAll(startCameraBtn, stopCameraBtn, markAttendanceBtn);
+        if (students.isEmpty()) {
+            Label noStudentsLabel = new Label("No students enrolled in this class yet");
+            noStudentsLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #94a3b8; -fx-font-style: italic;");
+            studentList.getChildren().add(noStudentsLabel);
+        } else {
+            for (Student student : students) {
+                String studentName = student.getName();
+                                
+                if (studentName.equalsIgnoreCase("Admin")) {
+                    continue;
+                }
 
-        // Recognition status
-        Label recognitionStatus = new Label("Recognition Status: Ready");
-        recognitionStatus.setStyle("-fx-font-size: 14px; -fx-text-fill: #7f8c8d;");
+                HBox studentRow = new HBox(15);
+                studentRow.setAlignment(Pos.CENTER_LEFT);
+                studentRow.getStyleClass().add("student-row");
 
-        cameraSection.getChildren().addAll(cameraTitle, cameraView, cameraControls, recognitionStatus);
+                CheckBox checkBox = new CheckBox();
+                checkBox.setStyle("-fx-font-size: 14px;");
+                                
+                studentCheckboxes.put(studentName, checkBox);
 
-        // Add both sections to main content area
-        mainContentArea.getChildren().addAll(studentSection, cameraSection);
+                checkBox.setOnAction(event -> {
+                    Label statusIndicator = studentStatusLabels.get(studentName);
+                    if (statusIndicator != null) {
+                        if (checkBox.isSelected()) {
+                            statusIndicator.setText("Present");
+                            statusIndicator.setStyle("-fx-text-fill: #27ae60; -fx-font-size: 12px; -fx-font-weight: bold;");
+                        } else {
+                            statusIndicator.setText("Absent");
+                            statusIndicator.setStyle("-fx-text-fill: #e74c3c; -fx-font-size: 12px;");
+                        }
+                    }
+                });
 
-        // Bottom section with navigation
-        HBox bottomSection = new HBox(20);
-        bottomSection.setAlignment(Pos.CENTER_LEFT);
-        bottomSection.setStyle("-fx-padding: 20 40;");
+                Label nameLabel = new Label(studentName);
+                nameLabel.getStyleClass().add("student-name");
 
-        Button backBtn = new Button("← Back to Home");
-        backBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #3498db; " +
-                "-fx-border-color: #3498db; -fx-border-width: 1; -fx-border-radius: 5; " +
-                "-fx-background-radius: 5; -fx-padding: 8 16; -fx-font-size: 14px;");
+                Label statusIndicator = new Label("Absent");
+                statusIndicator.setStyle("-fx-text-fill: #e74c3c; -fx-font-size: 12px;");
+                studentStatusLabels.put(studentName, statusIndicator);
 
-        Button registerStudentBtn = new Button("Register New Student");
-        registerStudentBtn.setStyle("-fx-background-color: #2c3e50; -fx-text-fill: white; " +
-                "-fx-border-radius: 5; -fx-background-radius: 5; " +
-                "-fx-padding: 8 16; -fx-font-size: 14px;");
+                Region spacer2 = new Region();
+                HBox.setHgrow(spacer2, Priority.ALWAYS);
 
-        bottomSection.getChildren().addAll(backBtn, registerStudentBtn);
-
-        // Event handlers
-        cs102Btn.setOnAction(e -> stage.setScene(createClassScene("CS102", username, stage)));
-        is216Btn.setOnAction(e -> stage.setScene(createClassScene("IS216", username, stage)));
-        cs440Btn.setOnAction(e -> stage.setScene(createClassScene("CS440", username, stage)));
-
-        backBtn.setOnAction(e -> {
-            Helper.stopCamera();
-            stage.setScene(Home.createHomeScene(username));
-        });
-
-        // Camera event handlers
-        startCameraBtn.setOnAction(e -> {
-            startCameraInClassScene(cameraView, recognitionStatus, className);
-            startCameraBtn.setDisable(true);
-            stopCameraBtn.setDisable(false);
-        });
-
-        stopCameraBtn.setOnAction(e -> {
-            Helper.stopCamera();
-            startCameraBtn.setDisable(false);
-            stopCameraBtn.setDisable(true);
-            recognitionStatus.setText("Recognition Status: Camera Stopped");
-        });
-
-        markAttendanceBtn.setOnAction(e -> {
-            showAlert("Attendance", "Attendance marked for recognized students!");
-        });
-
-        exportBtn.setOnAction(e -> showAlert("Export", "Exporting attendance data for " + className + "..."));
-        registerStudentBtn
-                .setOnAction(e -> showAlert("Register", "Opening student registration for " + className + "..."));
-
-        // Initial camera button states
-        stopCameraBtn.setDisable(true);
-
-        // Main layout
-        mainContainer.getChildren().addAll(headerSection, contentSection, mainContentArea, bottomSection);
-
-        javafx.scene.control.ScrollPane scrollPane = new javafx.scene.control.ScrollPane(mainContainer);
-        scrollPane.setFitToWidth(true);
-        scrollPane.setStyle("-fx-background-color: #f5f5f5;");
-
-        Scene scene = new Scene(scrollPane, Helper.getScreenWidth(), Helper.getScreenHeight());
-
-        // Maintain the same window size and position
-        Platform.runLater(() -> {
-            // Keep the stage at the same size it was
-            if (!stage.isMaximized()) {
-                stage.setWidth(Helper.getScreenWidth());
-                stage.setHeight(Helper.getScreenHeight());
+                studentRow.getChildren().addAll(checkBox, nameLabel, spacer2, statusIndicator);
+                studentList.getChildren().add(studentRow);
             }
+            loadExistingAttendance(groupId, students);
+        }
+        
+        HBox actionButtons = new HBox(15);
+        actionButtons.setAlignment(Pos.CENTER);
+        actionButtons.setStyle("-fx-padding: 20 0 0 0;");
+
+        Button saveButton = new Button("Save Attendance");
+        saveButton.getStyleClass().add("save-button");
+
+        Button exportButton = new Button("Export to Excel");
+        exportButton.getStyleClass().add("export-button");
+
+        saveButton.setOnAction(e -> {
+            saveAttendance(groupId, groupName);            
+            CustomAlert.showSuccess("Success", "Attendance saved successfully for " + groupName + "!");
         });
+
+        exportButton.setOnAction(e -> {
+            exportAttendanceToCSV(groupId, groupName, stage);
+        });
+
+        actionButtons.getChildren().addAll(saveButton, exportButton);
+
+        ScrollPane studentScrollPane = new ScrollPane(studentList);
+        studentScrollPane.setFitToWidth(true);
+        studentScrollPane.setStyle("-fx-background-color: transparent;");
+        studentScrollPane.setMaxHeight(400);
+        VBox.setVgrow(studentScrollPane, Priority.ALWAYS);
+
+        attendanceSection.getChildren().addAll(attendanceTitle, sessionLabel, studentScrollPane, actionButtons);
+
+        contentSection.getChildren().addAll(cameraSection, attendanceSection);
+        
+        mainContainer.getChildren().addAll(headerSection, contentSection);
+
+        ScrollPane mainScrollPane = new ScrollPane(mainContainer);
+        mainScrollPane.setFitToWidth(true);
+        mainScrollPane.setStyle("-fx-background-color: #0f172a;");
+
+        Scene scene = new Scene(mainScrollPane, Helper.getScreenWidth(), Helper.getScreenHeight());
+        scene.getStylesheets().add(Class.class.getResource("/css/styles.css").toExternalForm());
+                
+        Platform.runLater(() -> startAttendanceCamera(webcamView, detectionStatus));
 
         return scene;
     }
+    
+    private static List<Student> getStudentsForGroup(String groupId) {
+        Loader.loadStudentNames();
+        StudentDAO studentDAO = new StudentDAO();
+        List<Student> students = new ArrayList<>();
 
-    public static void startCameraInClassScene(ImageView imageView, Label statusLabel, String username) {
+        try {            
+            students = studentDAO.get_students_by_group(groupId);
+
+            if (students.isEmpty()) {
+                System.out.println("No students found for group: " + groupId);
+            } else {
+                System.out.println("Found " + students.size() + " students for group: " + groupId);
+            }
+                        
+            for (Student student : students) {
+                Helper.emailToNameMap.put(student.getEmail(), student.getName());
+                System.out.println("Mapped for display: " + student.getEmail() + " -> " + student.getName());
+            }
+
+        } catch (Exception e) {
+            System.err.println("Error retrieving students for group " + groupId + ": " + e.getMessage());
+        }
+
+        return students;
+    }
+
+    private static void startAttendanceCamera(ImageView imageView, Label statusLabel) {
         Helper.capture = new VideoCapture(0);
-        System.out.println("Camera opened: " + Helper.capture.isOpened());
-
         if (!Helper.capture.isOpened()) {
-            statusLabel.setText("Camera unavailable");
+            Platform.runLater(() -> statusLabel.setText("Camera unavailable"));
             return;
         }
         Helper.cameraActive = true;
-
-        // Load ONNX Mask Detection Model
+                
         OrtEnvironment env;
         OrtSession session;
         try {
             env = OrtEnvironment.getEnvironment();
             OrtSession.SessionOptions opts = new OrtSession.SessionOptions();
             session = env.createSession("src/main/resources/models/mask_detector.onnx", opts);
-            System.out.println("✅ Mask detector model loaded.");
+            System.out.println("✓ Mask detector model loaded.");
         } catch (OrtException e) {
-            e.printStackTrace();
-            statusLabel.setText("Failed to load mask detection model");
+            Platform.runLater(() -> statusLabel.setText("Failed to load mask detection model"));
             return;
         }
 
-        Scalar green = new Scalar(0, 255, 0);
-        Scalar red = new Scalar(0, 0, 255);
-        Scalar orange = new Scalar(0, 165, 255);
+        Platform.runLater(() -> statusLabel.setText("Camera active - Position yourself in front of camera"));
 
         Task<Void> frameGrabber = new Task<>() {
             @Override
             protected Void call() {
                 Mat frame = new Mat();
                 Mat gray = new Mat();
+                int consecutiveDetections = 0;
+                String lastDetectedEmail = "";
 
                 while (Helper.cameraActive) {
                     if (Helper.capture.read(frame)) {
@@ -379,66 +303,97 @@ public class Class {
                         Imgproc.cvtColor(Helper.currentFrame, gray, Imgproc.COLOR_BGR2GRAY);
 
                         MatOfRect faces = new MatOfRect();
-                        Helper.faceDetector.detectMultiScale(gray, faces, 1.1, 3, 0, new Size(30, 30), new Size());
+                        Helper.faceDetector.detectMultiScale(gray, faces, 1.1, 3, 0,
+                                new Size(30, 30), new Size());
 
-                        for (Rect rect : faces.toArray()) {
-                            // Extract region of interest for mask detection
-                            Mat faceROI = new Mat(frame, rect);
-                            Mat resized = new Mat();
-                            Imgproc.cvtColor(faceROI, resized, Imgproc.COLOR_BGR2RGB);
-                            Imgproc.resize(resized, resized, new Size(224, 224));
-                            resized.convertTo(resized, CvType.CV_32FC3, 1.0 / 255.0);
+                        Rect[] faceArray = faces.toArray();
 
-                            float[] nhwc = new float[224 * 224 * 3];
-                            resized.get(0, 0, nhwc);
-                            boolean maskDetected = false;
+                        if (faceArray.length > 0) {
+                            for (Rect rect : faceArray) {
+                                Mat faceROI = new Mat(frame, rect);
+                                Mat resized = new Mat();
+                                Imgproc.cvtColor(faceROI, resized, Imgproc.COLOR_BGR2RGB);
+                                Imgproc.resize(resized, resized, new Size(224, 224));
+                                resized.convertTo(resized, CvType.CV_32FC3, 1.0 / 255.0);
+                                float[] nhwc = new float[224 * 224 * 3];
+                                resized.get(0, 0, nhwc);
+                                boolean maskDetected = false;
 
-                            try (OnnxTensor inputTensor = OnnxTensor.createTensor(env, FloatBuffer.wrap(nhwc), new long[]{1, 224, 224, 3});
-                                OrtSession.Result result = session.run(Map.of(session.getInputNames().iterator().next(), inputTensor))) {
-                                float[][] probs = (float[][]) result.get(0).getValue();
-                                maskDetected = probs[0][0] > probs[0][1];
-                            } catch (OrtException e) {
-                                e.printStackTrace();
+                                try (OnnxTensor inputTensor = OnnxTensor.createTensor(env, FloatBuffer.wrap(nhwc), new long[]{1, 224, 224, 3});
+                                    OrtSession.Result result = session.run(Map.of(session.getInputNames().iterator().next(), inputTensor))) {
+                                    float[][] probs = (float[][]) result.get(0).getValue();
+                                    maskDetected = probs[0][0] > probs[0][1];
+                                } catch (OrtException e) {
+                                }
+
+                                if (maskDetected) {                                    
+                                    Imgproc.rectangle(Helper.currentFrame, rect.tl(), rect.br(), new Scalar(0, 0, 255), 3);
+                                    Imgproc.putText(Helper.currentFrame, "Mask Detected - Remove Mask", 
+                                            new Point(rect.x, rect.y - 10),
+                                            Imgproc.FONT_HERSHEY_SIMPLEX, 0.8, new Scalar(0, 0, 255), 2);
+                                } else {                                    
+                                    Mat face = gray.submat(rect);
+                                    Mat resizedFace = new Mat();
+                                    Imgproc.resize(face, resizedFace, new Size(200, 200));
+                                    
+                                    String recognizedEmail = Helper.recognizeFace(resizedFace);
+                                    
+                                    if (recognizedEmail.equals(lastDetectedEmail) && !recognizedEmail.equals("Unknown")) {
+                                        consecutiveDetections++;
+                                    } else {
+                                        consecutiveDetections = 1;
+                                        lastDetectedEmail = recognizedEmail;
+                                    }
+                                    
+                                    String studentName = Helper.emailToNameMap.get(recognizedEmail);
+                                    if (studentName == null) {                                    
+                                        studentName = recognizedEmail.equals("Unknown") ? "Unknown" : recognizedEmail;
+                                    }
+                                                                        
+                                    if (consecutiveDetections >= 5 && !recognizedEmail.equals("Unknown")) {
+                                        CheckBox checkBox = studentCheckboxes.get(studentName);
+                                        
+                                        if (checkBox != null && !checkBox.isSelected()) {
+                                            String finalStudentName = studentName;
+                                            Platform.runLater(() -> markStudentPresent(finalStudentName, statusLabel));
+                                            consecutiveDetections = 0;
+                                        }
+                                    }
+                                    
+                                    Scalar color = studentName.equals("Unknown") 
+                                        ? new Scalar(255, 165, 0) 
+                                        : new Scalar(0, 255, 0);
+
+                                    Imgproc.rectangle(Helper.currentFrame, new Point(rect.x, rect.y),
+                                            new Point(rect.x + rect.width, rect.y + rect.height),
+                                            color, 3);
+
+                                    String displayText = studentName.equals("Unknown") 
+                                            ? "Unknown Person" 
+                                            : studentName;
+                                    
+                                    Imgproc.putText(Helper.currentFrame, displayText,
+                                            new Point(rect.x, rect.y - 10),
+                                            Imgproc.FONT_HERSHEY_SIMPLEX, 0.9, color, 2);
+
+                                    resizedFace.release();
+                                    face.release();
+                                }
+                                
+                                resized.release();
+                                faceROI.release();
                             }
-
-                            if (maskDetected) {
-                                Imgproc.rectangle(Helper.currentFrame, rect.tl(), rect.br(), red, 2);
-                                Imgproc.putText(Helper.currentFrame, "Mask Detected", new Point(rect.x, rect.y - 10),
-                                        Imgproc.FONT_HERSHEY_SIMPLEX, 0.8, red, 2);
-                            } else {
-                                // perform recognition only if no mask
-                                Mat face = gray.submat(rect);
-                                Mat resizedFace = new Mat();
-                                Imgproc.resize(face, resizedFace, new Size(200, 200));
-                                String recognizedName = Helper.recognizeFace(resizedFace);
-
-                                Scalar color = recognizedName.equals("Unknown") ? orange : green;
-                                String labelText = recognizedName.equals("Unknown")
-                                        ? "Unknown"
-                                        : "Recognized: " + recognizedName;
-
-                                Imgproc.rectangle(Helper.currentFrame, rect.tl(), rect.br(), color, 2);
-                                Imgproc.putText(Helper.currentFrame, labelText, new Point(rect.x, rect.y - 10),
-                                        Imgproc.FONT_HERSHEY_SIMPLEX, 0.8, color, 2);
-
-                                resizedFace.release();
-                                face.release();
-                            }
-                            resized.release();
-                            faceROI.release();
                         }
 
-                        Image imageToShow = Helper.mat2Image(Helper.currentFrame);  
+                        Image imageToShow = Helper.mat2Image(Helper.currentFrame);
                         Platform.runLater(() -> imageView.setImage(imageToShow));
-                    } else {
-                        System.out.println("❌ Frame not read");
                     }
 
-                    try {
-                        Thread.sleep(33);
-                    } catch (InterruptedException e) {
-                        break;
-                    }
+                    // try {
+                    // Thread.sleep(33); 
+                    // } catch (InterruptedException e) {
+                    //     break;
+                    // }
                 }
 
                 frame.release();
@@ -450,5 +405,285 @@ public class Class {
         Thread th = new Thread(frameGrabber);
         th.setDaemon(true);
         th.start();
+    }
+
+    private static void markStudentPresent(String studentName, Label statusLabel) {        
+        CheckBox checkBox = studentCheckboxes.get(studentName);
+        Label statusIndicator = studentStatusLabels.get(studentName);
+        
+        if (checkBox != null) {
+            checkBox.setSelected(true);
+            
+            if (statusIndicator != null) {
+                statusIndicator.setText("Present (Auto-detected)");
+                statusIndicator.setStyle("-fx-text-fill: #27ae60; -fx-font-size: 12px; -fx-font-weight: bold;");
+            }
+            
+            statusLabel.setText("✓ Attendance marked: " + studentName);
+            statusLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #27ae60; -fx-font-weight: bold;");
+            
+            System.out.println("Attendance marked for: " + studentName);
+        } else {            
+            statusLabel.setText("⚠ " + studentName + " detected but not in this class");
+            statusLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #f39c12; -fx-font-weight: bold;");
+        }
+    }
+                                
+    private static void saveAttendance(String groupId, String groupName) {
+        System.out.println("Saving attendance for group: " + groupName + " (ID: " + groupId + ")");
+        
+        String currentDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        
+        Connection conn = null;
+        try {
+            conn = DatabaseManager.getConnection();
+            conn.setAutoCommit(false); 
+                        
+            String checkSessionSql = "SELECT COUNT(*) FROM attendanceSessions WHERE group_id = ? AND date = ?";
+            boolean sessionExists = false;
+            
+            try (PreparedStatement checkPs = conn.prepareStatement(checkSessionSql)) {
+                checkPs.setString(1, groupId);
+                checkPs.setString(2, currentDate);
+                ResultSet rs = checkPs.executeQuery();
+                if (rs.next() && rs.getInt(1) > 0) {
+                    sessionExists = true;
+                }
+            }
+                        
+            if (sessionExists) {                
+                System.out.println("Updating existing session for " + groupId + " on " + currentDate);
+            } else {                
+                String sessionSql = "INSERT INTO attendanceSessions (group_id, date, start_time, end_time, session_type) " +
+                                "VALUES (?, ?, NULL, NULL, NULL)";
+                
+                try (PreparedStatement sessionPs = conn.prepareStatement(sessionSql)) {
+                    sessionPs.setString(1, groupId);
+                    sessionPs.setString(2, currentDate);
+                    sessionPs.executeUpdate();
+                    System.out.println("Created new attendance session for " + groupId + " on " + currentDate);
+                }
+            }
+                        
+            List<Student> students = getStudentsForGroup(groupId);
+            int savedCount = 0;
+            int updatedCount = 0;
+                        
+            String upsertRecordSql = "INSERT INTO attendanceRecords (group_id, date, student_id, status) " +
+                                    "VALUES (?, ?, ?, ?) " +
+                                    "ON CONFLICT(group_id, date, student_id) " +
+                                    "DO UPDATE SET status = excluded.status";
+            
+            try (PreparedStatement recordPs = conn.prepareStatement(upsertRecordSql)) {
+                for (Student student : students) {
+                    String studentName = student.getName();
+                                        
+                    if (studentName.equalsIgnoreCase("Admin")) {
+                        continue;
+                    }
+                                        
+                    CheckBox checkBox = studentCheckboxes.get(studentName);
+                    String status = (checkBox != null && checkBox.isSelected()) ? "Present" : "Absent";
+                                        
+                    recordPs.setString(1, groupId);
+                    recordPs.setString(2, currentDate);
+                    recordPs.setString(3, student.getStudent_id());
+                    recordPs.setString(4, status);
+                    
+                    if (sessionExists) {
+                        updatedCount++;
+                    } else {
+                        savedCount++;
+                    }
+                    
+                    System.out.println(studentName + " (" + student.getEmail() + "): " + status);
+                }
+            }
+                        
+            conn.commit();
+            
+            String message = sessionExists 
+                ? "Successfully updated attendance for " + updatedCount + " students"
+                : "Successfully saved attendance for " + savedCount + " students";
+            System.out.println(message);
+            
+        } catch (SQLException e) {
+            System.err.println("Failed to save attendance: " + e.getMessage());
+                        
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                    System.err.println("Transaction rolled back");
+                } catch (SQLException ex) {
+                    System.err.println("Failed to rollback: " + ex.getMessage());
+                }
+            }
+                        
+            Platform.runLater(() -> 
+                Helper.showAlert("Save Error", "Failed to save attendance to database:\n" + e.getMessage())
+            );
+            
+        } finally {
+            if (conn != null) {
+                try {
+                conn.setAutoCommit(true); 
+                    conn.close();
+                } catch (SQLException e) {
+                    System.err.println("Failed to close connection: " + e.getMessage());
+                }
+            }
+        }
+    }
+
+    private static void loadExistingAttendance(String groupId, List<Student> students) {
+        String currentDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                
+        Map<String, String> studentIdToName = new HashMap<>();
+        for (Student student : students) {
+            studentIdToName.put(student.getStudent_id(), student.getName());
+        }
+        
+        String sql = "SELECT student_id, status FROM attendanceRecords " +
+                    "WHERE group_id = ? AND date = ?";
+        
+        try (
+            Connection conn = DatabaseManager.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql);
+        ) {
+            ps.setString(1, groupId);
+            ps.setString(2, currentDate);
+            
+            ResultSet rs = ps.executeQuery();
+            int loadedCount = 0;
+            
+            while (rs.next()) {
+                String studentId = rs.getString("student_id");
+                String status = rs.getString("status");
+                                
+                String studentName = studentIdToName.get(studentId);
+                
+                if (studentName != null && !studentName.equalsIgnoreCase("Admin")) {
+                    CheckBox checkBox = studentCheckboxes.get(studentName);
+                    Label statusLabel = studentStatusLabels.get(studentName);
+                    
+                    if (checkBox != null && statusLabel != null) {
+                        final boolean isPresent = status.equals("Present");
+                        
+                        Platform.runLater(() -> {
+                            checkBox.setSelected(isPresent);
+                            if (isPresent) {
+                                statusLabel.setText("Present (Previously saved)");
+                                statusLabel.setStyle("-fx-text-fill: #3498db; -fx-font-size: 12px; -fx-font-weight: bold;");
+                            } else {
+                                statusLabel.setText("Absent");
+                                statusLabel.setStyle("-fx-text-fill: #e74c3c; -fx-font-size: 12px;");
+                            }
+                        });
+                        loadedCount++;
+                    }
+                }
+            }
+            
+            if (loadedCount > 0) {
+                System.out.println("Loaded existing attendance for " + loadedCount + " students on " + currentDate);
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("Failed to load existing attendance: " + e.getMessage());
+        }
+    }
+
+    private static void exportAttendanceToCSV(String groupId, String groupName, Stage stage) {        
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Save Attendance Report");
+                
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+        String defaultFileName = groupName.replaceAll("[^a-zA-Z0-9]", "_") + "_Attendance_" + timestamp + ".csv";
+        fileChooser.setInitialFileName(defaultFileName);
+                
+        FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter("CSV files (*.csv)", "*.csv");
+        fileChooser.getExtensionFilters().add(extFilter);
+                
+        File file = fileChooser.showSaveDialog(stage);
+        
+        if (file != null) {
+            try {
+                writeAttendanceCSV(file, groupId, groupName);                
+                CustomAlert.showSuccess("Export Success", "Attendance exported successfully to:\n" + file.getAbsolutePath());
+            } catch (IOException ex) {                
+                CustomAlert.showError("Export Error", "Failed to export attendance:\n" + ex.getMessage());
+            }
+        }
+    }
+
+    private static void writeAttendanceCSV(File file, String groupId, String groupName) throws IOException {        
+        GroupDAO groupDAO = new GroupDAO();
+        Group group = null;
+                
+        for (Group g : groupDAO.get_all_groups()) {
+            if (g.getGroup_id().equals(groupId)) {
+                group = g;
+                break;
+            }
+        }
+        
+        String courseCode = (group != null) ? group.getcourse_code() : "N/A";
+        String currentDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+    String currentDay = LocalDateTime.now().format(DateTimeFormatter.ofPattern("EEEE")); 
+        
+        try (FileWriter writer = new FileWriter(file)) {            
+            writer.append("Name,Email,Course Code,Group,Date,Day,Attendance\n");
+                        
+            List<Student> students = getStudentsForGroup(groupId);
+                        
+            for (Student student : students) {
+                String studentName = student.getName();
+                String studentEmail = student.getEmail();
+                                
+                if (studentName.equalsIgnoreCase("Admin")) {
+                    continue;
+                }
+                                
+                CheckBox checkBox = studentCheckboxes.get(studentName);
+                String attendance;
+                
+                if (checkBox != null && checkBox.isSelected()) {
+                    attendance = "Present";
+                } else {
+                    attendance = "Absent";
+                }
+                                
+                writer.append(escapeCSV(studentName))
+                    .append(',')
+                    .append(escapeCSV(studentEmail))
+                    .append(',')
+                    .append(escapeCSV(courseCode))
+                    .append(',')
+                    .append(escapeCSV(groupName))
+                    .append(',')
+                    .append(currentDate)
+                    .append(',')
+                    .append(currentDay)
+                    .append(',')
+                    .append(attendance)
+                    .append('\n');
+            }
+            
+            writer.flush();
+            System.out.println("Attendance CSV exported successfully: " + file.getAbsolutePath());
+        }
+    }
+    
+    private static String escapeCSV(String value) {
+        if (value == null) {
+            return "";
+        }
+                
+        if (value.contains(",") || value.contains("\"") || value.contains("\n")) {            
+            value = value.replace("\"", "\"\"");
+            return "\"" + value + "\"";
+        }
+        
+        return value;
     }
 }
