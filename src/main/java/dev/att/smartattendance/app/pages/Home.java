@@ -114,7 +114,10 @@ public class Home {
             noClassesLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #94a3b8; -fx-font-style: italic;");
             classButtons.getChildren().add(noClassesLabel);
         } else {
-            for (Group group : professorGroups) {                
+            for (Group group : professorGroups) {                                
+                VBox classButtonContainer = new VBox(5);
+                classButtonContainer.setAlignment(Pos.CENTER);
+                
                 String buttonLabel = group.getcourse_code() + " (" + group.getGroup_name() + ")";
                 Button classBtn = new Button(buttonLabel);
                 classBtn.getStyleClass().add("class-button");
@@ -133,13 +136,39 @@ public class Home {
                     ));
                 });
                 
-                classButtons.getChildren().add(classBtn);
+                classButtonContainer.getChildren().add(classBtn);
+                                
+                if (username.equals("Admin")) {
+                    Button manageBtn = new Button("⚙ Manage");
+                    manageBtn.setStyle("-fx-background-color: #64748b; -fx-text-fill: white; " +
+                            "-fx-font-size: 11px; -fx-padding: 4 12; -fx-background-radius: 6; " +
+                            "-fx-cursor: hand; -fx-font-weight: 600;");
+                    
+                    manageBtn.setOnMouseEntered(e -> {
+                        manageBtn.setStyle("-fx-background-color: #475569; -fx-text-fill: white; " +
+                                "-fx-font-size: 11px; -fx-padding: 4 12; -fx-background-radius: 6; " +
+                                "-fx-cursor: hand; -fx-font-weight: 600;");
+                    });
+                    
+                    manageBtn.setOnMouseExited(e -> {
+                        manageBtn.setStyle("-fx-background-color: #64748b; -fx-text-fill: white; " +
+                                "-fx-font-size: 11px; -fx-padding: 4 12; -fx-background-radius: 6; " +
+                                "-fx-cursor: hand; -fx-font-weight: 600;");
+                    });
+                    
+                    manageBtn.setOnAction(e -> {
+                        Helper.stopCamera();
+                        Stage stage = (Stage) manageBtn.getScene().getWindow();
+                        stage.setScene(ClassManagement.createManageClassScene(stage, group.getGroup_id()));
+                    });
+                    
+                    classButtonContainer.getChildren().add(manageBtn);
+                }
+                
+                classButtons.getChildren().add(classButtonContainer);
             }
         }
         
-        Button newClassBtn = new Button("New Class");
-        newClassBtn.getStyleClass().add("new-class-button");
-
         Button enrollStudentBtn = new Button("Enroll Student");
         enrollStudentBtn.getStyleClass().add("enroll-student-button");
 
@@ -149,7 +178,20 @@ public class Home {
 
         HBox actionButtonsRow = new HBox(15);
         actionButtonsRow.setAlignment(Pos.CENTER_RIGHT);
-        actionButtonsRow.getChildren().addAll(enrollStudentBtn, newClassBtn);
+        actionButtonsRow.getChildren().add(enrollStudentBtn);
+                
+        if (username.equals("Admin")) {
+            Button newClassBtn = new Button("New Class");
+            newClassBtn.getStyleClass().add("new-class-button");
+            
+            newClassBtn.setOnAction(e -> {
+                Helper.stopCamera();
+                Stage stage = (Stage) newClassBtn.getScene().getWindow();
+                stage.setScene(ClassManagement.createNewClassScene(stage));
+            });
+            
+            actionButtonsRow.getChildren().add(newClassBtn);
+        }
 
         contentSection.getChildren().addAll(semesterSection, classRow, classButtons, actionButtonsRow);
         
@@ -179,8 +221,6 @@ public class Home {
 
         bottomSection.getChildren().addAll(cameraLabel, webcamView, logoutButton);
 
-        newClassBtn.setOnAction(e -> Helper.showAlert("New Class", "Creating new class..."));
-        
         enrollStudentBtn.setOnAction(e -> {
             Helper.stopCamera();
             Stage stage = (Stage) enrollStudentBtn.getScene().getWindow();
