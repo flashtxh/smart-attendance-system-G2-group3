@@ -419,7 +419,6 @@ public class ClassManagement {
             
         } catch (SQLException e) {
             System.err.println("Failed to create class: " + e.getMessage());
-            e.printStackTrace();
             if (conn != null) {
                 try {
                     conn.rollback();
@@ -790,7 +789,6 @@ public class ClassManagement {
             
         } catch (SQLException e) {
             System.err.println("Failed to delete class: " + e.getMessage());
-            e.printStackTrace();
             if (conn != null) {
                 try {
                     conn.rollback();

@@ -1,8 +1,5 @@
 package dev.att.smartattendance.model.attendanceSession;
 
-import dev.att.smartattendance.model.course.Course;
-import dev.att.smartattendance.model.group.Group;
-
 public class AttendanceSession {
     private String session_id;
     private String group_id;

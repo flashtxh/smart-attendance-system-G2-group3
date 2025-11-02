@@ -59,9 +59,9 @@ import javafx.stage.Stage;
 
 public class Class {
         
-    private static Map<String, CheckBox> studentCheckboxes = new HashMap<>();
-    private static Map<String, Label> studentStatusLabels = new HashMap<>();
-    private static Set<String> detectedStudentsInThisSession = new HashSet<>();
+    private final static Map<String, CheckBox> studentCheckboxes = new HashMap<>();
+    private final static Map<String, Label> studentStatusLabels = new HashMap<>();
+    private final static Set<String> detectedStudentsInThisSession = new HashSet<>();
         
     public static Scene createClassScene(String groupId, String groupName, String username, Stage stage) {        
         studentCheckboxes.clear();
@@ -207,8 +207,7 @@ public class Class {
         exportButton.getStyleClass().add("export-button");
 
         saveButton.setOnAction(e -> {
-            saveAttendance(groupId, groupName);
-            // Helper.showAlert("Success", "Attendance saved successfully for " + groupId + "!");
+            saveAttendance(groupId, groupName);            
             CustomAlert.showSuccess("Success", "Attendance saved successfully for " + groupName + "!");
         });
 
@@ -237,7 +236,7 @@ public class Class {
         Scene scene = new Scene(mainScrollPane, Helper.getScreenWidth(), Helper.getScreenHeight());
         scene.getStylesheets().add(Class.class.getResource("/css/styles.css").toExternalForm());
                 
-        Platform.runLater(() -> startAttendanceCamera(webcamView, detectionStatus, groupId));
+        Platform.runLater(() -> startAttendanceCamera(webcamView, detectionStatus));
 
         return scene;
     }
@@ -263,21 +262,19 @@ public class Class {
 
         } catch (Exception e) {
             System.err.println("Error retrieving students for group " + groupId + ": " + e.getMessage());
-            e.printStackTrace();
         }
 
         return students;
     }
 
-    private static void startAttendanceCamera(ImageView imageView, Label statusLabel, String groupId) {
+    private static void startAttendanceCamera(ImageView imageView, Label statusLabel) {
         Helper.capture = new VideoCapture(0);
         if (!Helper.capture.isOpened()) {
             Platform.runLater(() -> statusLabel.setText("Camera unavailable"));
             return;
         }
         Helper.cameraActive = true;
-        
-        // Load mask detection model
+                
         OrtEnvironment env;
         OrtSession session;
         try {
@@ -286,7 +283,6 @@ public class Class {
             session = env.createSession("src/main/resources/models/mask_detector.onnx", opts);
             System.out.println("✓ Mask detector model loaded.");
         } catch (OrtException e) {
-            e.printStackTrace();
             Platform.runLater(() -> statusLabel.setText("Failed to load mask detection model"));
             return;
         }
@@ -328,17 +324,14 @@ public class Class {
                                     float[][] probs = (float[][]) result.get(0).getValue();
                                     maskDetected = probs[0][0] > probs[0][1];
                                 } catch (OrtException e) {
-                                    e.printStackTrace();
                                 }
 
-                                if (maskDetected) {
-                                    // MASK DETECTED - Draw red box and warning
+                                if (maskDetected) {                                    
                                     Imgproc.rectangle(Helper.currentFrame, rect.tl(), rect.br(), new Scalar(0, 0, 255), 3);
                                     Imgproc.putText(Helper.currentFrame, "Mask Detected - Remove Mask", 
                                             new Point(rect.x, rect.y - 10),
                                             Imgproc.FONT_HERSHEY_SIMPLEX, 0.8, new Scalar(0, 0, 255), 2);
-                                } else {
-                                    // NO MASK - Proceed with normal face recognition
+                                } else {                                    
                                     Mat face = gray.submat(rect);
                                     Mat resizedFace = new Mat();
                                     Imgproc.resize(face, resizedFace, new Size(200, 200));
@@ -356,8 +349,7 @@ public class Class {
                                     if (studentName == null) {                                    
                                         studentName = recognizedEmail.equals("Unknown") ? "Unknown" : recognizedEmail;
                                     }
-                                    
-                                    // Mark attendance if detected reliably and checkbox not already checked
+                                                                        
                                     if (consecutiveDetections >= 5 && !recognizedEmail.equals("Unknown")) {
                                         CheckBox checkBox = studentCheckboxes.get(studentName);
                                         
@@ -397,11 +389,11 @@ public class Class {
                         Platform.runLater(() -> imageView.setImage(imageToShow));
                     }
 
-                    try {
-                        Thread.sleep(33); // ~30 FPS
-                    } catch (InterruptedException e) {
-                        break;
-                    }
+                    // try {
+                    // Thread.sleep(33); 
+                    // } catch (InterruptedException e) {
+                    //     break;
+                    // }
                 }
 
                 frame.release();
@@ -498,8 +490,6 @@ public class Class {
                     recordPs.setString(3, student.getStudent_id());
                     recordPs.setString(4, status);
                     
-                    int rowsAffected = recordPs.executeUpdate();
-                    
                     if (sessionExists) {
                         updatedCount++;
                     } else {
@@ -519,7 +509,6 @@ public class Class {
             
         } catch (SQLException e) {
             System.err.println("Failed to save attendance: " + e.getMessage());
-            e.printStackTrace();
                         
             if (conn != null) {
                 try {
@@ -578,7 +567,6 @@ public class Class {
                     Label statusLabel = studentStatusLabels.get(studentName);
                     
                     if (checkBox != null && statusLabel != null) {
-                        final String name = studentName;
                         final boolean isPresent = status.equals("Present");
                         
                         Platform.runLater(() -> {
@@ -602,7 +590,6 @@ public class Class {
             
         } catch (SQLException e) {
             System.err.println("Failed to load existing attendance: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 
@@ -621,14 +608,10 @@ public class Class {
         
         if (file != null) {
             try {
-                writeAttendanceCSV(file, groupId, groupName);
-                // Helper.showAlert("Export Success", "Attendance exported successfully to:\n" + file.getAbsolutePath());
+                writeAttendanceCSV(file, groupId, groupName);                
                 CustomAlert.showSuccess("Export Success", "Attendance exported successfully to:\n" + file.getAbsolutePath());
-            } catch (IOException ex) {
-                // Helper.showAlert("Export Error", "Failed to export attendance:\n" + ex.getMessage());
+            } catch (IOException ex) {                
                 CustomAlert.showError("Export Error", "Failed to export attendance:\n" + ex.getMessage());
-
-                ex.printStackTrace();
             }
         }
     }

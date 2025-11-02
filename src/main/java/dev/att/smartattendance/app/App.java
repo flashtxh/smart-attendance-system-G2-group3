@@ -1,15 +1,11 @@
 package dev.att.smartattendance.app;
 
-import java.io.ByteArrayInputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
-import org.opencv.core.MatOfByte;
-import org.opencv.imgcodecs.Imgcodecs;
-import org.opencv.imgproc.Imgproc;
 import org.opencv.objdetect.CascadeClassifier;
 import org.opencv.videoio.VideoCapture;
 
@@ -17,7 +13,6 @@ import dev.att.smartattendance.app.pages.Login;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
-import javafx.scene.image.Image;
 import javafx.stage.Stage;
 
 public class App extends Application {
@@ -75,49 +70,11 @@ public class App extends Application {
         });
     }
 
-    private String recognizeFace(Mat face) {
-        Mat faceHist = Loader.computeHistogram(face);
-
-        String bestMatch = "Unknown";
-        double bestScore = 0.7; // threshold for recognition
-
-        for (Map.Entry<String, List<Mat>> entry : personHistograms.entrySet()) {
-            double score = getBestHistogramScore(faceHist, entry.getValue());
-            if (score > bestScore) {
-                bestScore = score;
-                bestMatch = entry.getKey();
-            }
-        }
-
-        faceHist.release();
-        return bestMatch;
-    }
-
-    private double getBestHistogramScore(Mat faceHist, List<Mat> histograms) {
-        double bestScore = 0;
-        for (Mat hist : histograms) {
-            double score = Imgproc.compareHist(faceHist, hist, Imgproc.HISTCMP_CORREL);
-            bestScore = Math.max(bestScore, score);
-        }
-        return bestScore;
-    }
-
     private void stopCamera() {
         cameraActive = false;
         capturingMode = false;
         if (capture != null && capture.isOpened()) {
             capture.release();
-        }
-    }
-
-    private Image mat2Image(Mat frame) {
-        try {
-            MatOfByte buffer = new MatOfByte();
-            Imgcodecs.imencode(".png", frame, buffer);
-            return new Image(new ByteArrayInputStream(buffer.toArray()));
-        } catch (Exception e) {
-            System.err.println("Cannot convert Mat object: " + e);
-            return null;
         }
     }
 
