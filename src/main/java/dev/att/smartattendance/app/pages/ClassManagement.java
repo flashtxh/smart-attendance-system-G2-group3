@@ -12,9 +12,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import dev.att.smartattendance.app.CustomAlert;
-import dev.att.smartattendance.app.CustomConfirmDialog;
 import dev.att.smartattendance.app.Helper;
+import dev.att.smartattendance.app.customAlert.CustomAlert;
+import dev.att.smartattendance.app.customAlert.CustomConfirmDialog;
 import dev.att.smartattendance.model.course.Course;
 import dev.att.smartattendance.model.course.CourseDAO;
 import dev.att.smartattendance.model.group.Group;

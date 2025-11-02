@@ -10,8 +10,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-import dev.att.smartattendance.app.CustomAlert;
 import dev.att.smartattendance.app.Helper;
+import dev.att.smartattendance.app.customAlert.CustomAlert;
 import dev.att.smartattendance.model.professor.Professor;
 import dev.att.smartattendance.model.professor.ProfessorDAO;
 import dev.att.smartattendance.util.DatabaseManager;

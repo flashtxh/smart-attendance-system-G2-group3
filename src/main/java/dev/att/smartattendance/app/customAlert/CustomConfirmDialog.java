@@ -1,4 +1,4 @@
-package dev.att.smartattendance.app;
+package dev.att.smartattendance.app.customAlert;
 
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -270,9 +270,11 @@ public class CustomConfirmDialog {
         String title = "Delete Class?";
         String message = "Are you sure you want to permanently delete:\n" + 
                         className + " (" + courseCode + ")";
-        String details = "Remove all student enrollments from this class\n" +
-                        "Delete all attendance records for this class\n" +
-                        "Permanently delete the class from the system";
+        String details;
+        details = """
+                  Remove all student enrollments from this class
+                  Delete all attendance records for this class
+                  Permanently delete the class from the system""";
         
         return show(title, message, details);
     }
