@@ -297,13 +297,11 @@ public class Class {
                                 if (studentName == null) {                                    
                                     studentName = recognizedEmail.equals("Unknown") ? "Unknown" : recognizedEmail;
                                 }
-                                
-                                // Mark attendance if detected reliably
+                                                                
                                 if (consecutiveDetections >= 5 && !recognizedEmail.equals("Unknown")) {
                                     
                                     CheckBox checkBox = studentCheckboxes.get(studentName);
-                                    
-                                    // Only mark if checkbox exists and is NOT already checked
+                                                                        
                                     if (checkBox != null && !checkBox.isSelected()) {
                                         String finalStudentName = studentName;
                                         Platform.runLater(() -> markStudentPresent(finalStudentName, statusLabel));
@@ -375,15 +373,7 @@ public class Class {
             statusLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #f39c12; -fx-font-weight: bold;");
         }
     }
-
-    // private static void saveAttendance(String groupId, String groupName) {
-    //     System.out.println("Saving attendance for group: " + groupName + " (ID: " + groupId + ")");
-    //     for (Map.Entry<String, CheckBox> entry : studentCheckboxes.entrySet()) {
-    //         String studentName = entry.getKey();
-    //         boolean present = entry.getValue().isSelected();
-    //         System.out.println(studentName + ": " + (present ? "Present" : "Absent"));
-    //     }        
-    // }
+                                
     private static void saveAttendance(String groupId, String groupName) {
         System.out.println("Saving attendance for group: " + groupName + " (ID: " + groupId + ")");
         
@@ -392,9 +382,8 @@ public class Class {
         Connection conn = null;
         try {
             conn = DatabaseManager.getConnection();
-            conn.setAutoCommit(false); // Start transaction
-            
-            // Step 1: Check if session exists
+        conn.setAutoCommit(false); 
+                        
             String checkSessionSql = "SELECT COUNT(*) FROM attendanceSessions WHERE group_id = ? AND date = ?";
             boolean sessionExists = false;
             
@@ -406,13 +395,10 @@ public class Class {
                     sessionExists = true;
                 }
             }
-            
-            // Step 2: Insert or update session
-            if (sessionExists) {
-                // Session exists - could update metadata here if needed
+                        
+            if (sessionExists) {                
                 System.out.println("Updating existing session for " + groupId + " on " + currentDate);
-            } else {
-                // Create new session
+            } else {                
                 String sessionSql = "INSERT INTO attendanceSessions (group_id, date, start_time, end_time, session_type) " +
                                 "VALUES (?, ?, NULL, NULL, NULL)";
                 
@@ -423,13 +409,11 @@ public class Class {
                     System.out.println("Created new attendance session for " + groupId + " on " + currentDate);
                 }
             }
-            
-            // Step 3: Get all students for this group
+                        
             List<Student> students = getStudentsForGroup(groupId);
             int savedCount = 0;
             int updatedCount = 0;
-            
-            // Step 4: Insert or update attendance records for each student
+                        
             String upsertRecordSql = "INSERT INTO attendanceRecords (group_id, date, student_id, status) " +
                                     "VALUES (?, ?, ?, ?) " +
                                     "ON CONFLICT(group_id, date, student_id) " +
@@ -438,17 +422,14 @@ public class Class {
             try (PreparedStatement recordPs = conn.prepareStatement(upsertRecordSql)) {
                 for (Student student : students) {
                     String studentName = student.getName();
-                    
-                    // Skip Admin
+                                        
                     if (studentName.equalsIgnoreCase("Admin")) {
                         continue;
                     }
-                    
-                    // Get attendance status from checkbox
+                                        
                     CheckBox checkBox = studentCheckboxes.get(studentName);
                     String status = (checkBox != null && checkBox.isSelected()) ? "Present" : "Absent";
-                    
-                    // Upsert record (insert or update if exists)
+                                        
                     recordPs.setString(1, groupId);
                     recordPs.setString(2, currentDate);
                     recordPs.setString(3, student.getStudent_id());
@@ -465,8 +446,7 @@ public class Class {
                     System.out.println(studentName + " (" + student.getEmail() + "): " + status);
                 }
             }
-            
-            // Commit transaction
+                        
             conn.commit();
             
             String message = sessionExists 
@@ -477,8 +457,7 @@ public class Class {
         } catch (SQLException e) {
             System.err.println("Failed to save attendance: " + e.getMessage());
             e.printStackTrace();
-            
-            // Rollback on error
+                        
             if (conn != null) {
                 try {
                     conn.rollback();
@@ -487,8 +466,7 @@ public class Class {
                     System.err.println("Failed to rollback: " + ex.getMessage());
                 }
             }
-            
-            // Show error to user
+                        
             Platform.runLater(() -> 
                 Helper.showAlert("Save Error", "Failed to save attendance to database:\n" + e.getMessage())
             );
@@ -496,7 +474,7 @@ public class Class {
         } finally {
             if (conn != null) {
                 try {
-                    conn.setAutoCommit(true); // Reset auto-commit
+                conn.setAutoCommit(true); 
                     conn.close();
                 } catch (SQLException e) {
                     System.err.println("Failed to close connection: " + e.getMessage());
@@ -507,8 +485,7 @@ public class Class {
 
     private static void loadExistingAttendance(String groupId, List<Student> students) {
         String currentDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-        
-        // Create a map of student_id to student name for easy lookup
+                
         Map<String, String> studentIdToName = new HashMap<>();
         for (Student student : students) {
             studentIdToName.put(student.getStudent_id(), student.getName());
@@ -530,8 +507,7 @@ public class Class {
             while (rs.next()) {
                 String studentId = rs.getString("student_id");
                 String status = rs.getString("status");
-                
-                // Get student name from the map
+                                
                 String studentName = studentIdToName.get(studentId);
                 
                 if (studentName != null && !studentName.equalsIgnoreCase("Admin")) {
