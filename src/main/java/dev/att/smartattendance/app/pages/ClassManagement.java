@@ -13,6 +13,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import dev.att.smartattendance.app.CustomAlert;
+import dev.att.smartattendance.app.CustomConfirmDialog;
 import dev.att.smartattendance.app.Helper;
 import dev.att.smartattendance.model.course.Course;
 import dev.att.smartattendance.model.course.CourseDAO;
@@ -523,22 +524,36 @@ public class ClassManagement {
         buttonBox.setAlignment(Pos.CENTER);
         
         Button deleteClassButton = new Button("🗑 Delete Class");
-        deleteClassButton.setStyle("-fx-background-color: #dc2626; -fx-text-fill: white; " +
+        // deleteClassButton.setStyle("-fx-background-color: #dc2626; -fx-text-fill: white; " +
+        //         "-fx-font-size: 14px; -fx-padding: 12 24; -fx-background-radius: 8; " +
+        //         "-fx-cursor: hand; -fx-font-weight: bold;");
+        
+        // deleteClassButton.setOnMouseEntered(e -> {
+        //     deleteClassButton.setStyle("-fx-background-color: #b91c1c; -fx-text-fill: white; " +
+        //             "-fx-font-size: 14px; -fx-padding: 12 24; -fx-background-radius: 8; " +
+        //             "-fx-cursor: hand; -fx-font-weight: bold; -fx-scale-x: 1.05; -fx-scale-y: 1.05;");
+        // });
+        
+        // deleteClassButton.setOnMouseExited(e -> {
+        //     deleteClassButton.setStyle("-fx-background-color: #dc2626; -fx-text-fill: white; " +
+        //             "-fx-font-size: 14px; -fx-padding: 12 24; -fx-background-radius: 8; " +
+        //             "-fx-cursor: hand; -fx-font-weight: bold;");
+        // });
+        deleteClassButton.setStyle("-fx-background-color: #ef6060ff; -fx-text-fill: white; " +
                 "-fx-font-size: 14px; -fx-padding: 12 24; -fx-background-radius: 8; " +
                 "-fx-cursor: hand; -fx-font-weight: bold;");
         
         deleteClassButton.setOnMouseEntered(e -> {
-            deleteClassButton.setStyle("-fx-background-color: #b91c1c; -fx-text-fill: white; " +
+            deleteClassButton.setStyle("-fx-background-color: #ef4444; -fx-text-fill: white; " +
                     "-fx-font-size: 14px; -fx-padding: 12 24; -fx-background-radius: 8; " +
                     "-fx-cursor: hand; -fx-font-weight: bold; -fx-scale-x: 1.05; -fx-scale-y: 1.05;");
         });
         
         deleteClassButton.setOnMouseExited(e -> {
-            deleteClassButton.setStyle("-fx-background-color: #dc2626; -fx-text-fill: white; " +
+            deleteClassButton.setStyle("-fx-background-color: #ef6060ff; -fx-text-fill: white; " +
                     "-fx-font-size: 14px; -fx-padding: 12 24; -fx-background-radius: 8; " +
                     "-fx-cursor: hand; -fx-font-weight: bold;");
         });
-        
         Button backButton = new Button("Back to Home");
         backButton.getStyleClass().add("back-button");
         backButton.setPrefWidth(180);
@@ -546,34 +561,23 @@ public class ClassManagement {
         buttonBox.getChildren().addAll(deleteClassButton, backButton);
         
         deleteClassButton.setOnAction(e -> {
-            // Show confirmation dialog
-            javafx.scene.control.Alert confirmAlert = new javafx.scene.control.Alert(
-                javafx.scene.control.Alert.AlertType.CONFIRMATION);
-            confirmAlert.setTitle("Delete Class");
-            confirmAlert.setHeaderText("Are you sure you want to delete this class?");
-            confirmAlert.setContentText("Class: " + currentGroup.getGroup_name() + 
-                    " (" + currentGroup.getcourse_code() + ")\n\n" +
-                    "This will:\n" +
-                    "• Remove all student enrollments from this class\n" +
-                    "• Delete all attendance records for this class\n" +
-                    "• Permanently delete the class\n\n" +
-                    "This action CANNOT be undone!");
+            boolean confirmed = CustomConfirmDialog.showDeleteClassConfirmation(
+                currentGroup.getGroup_name(), 
+                currentGroup.getcourse_code()
+            );
             
-            confirmAlert.showAndWait().ifPresent(response -> {
-                if (response == javafx.scene.control.ButtonType.OK) {
-                    boolean success = deleteClass(groupId);
-                    if (success) {
-                        CustomAlert.showSuccess("Class Deleted", 
-                                "Class " + currentGroup.getGroup_name() + " has been permanently deleted.");
-                        stage.setScene(Home.createHomeScene(Helper.loggedInUsername));
-                    } else {
-                        CustomAlert.showError("Deletion Failed", 
-                                "Failed to delete the class. Please try again.");
-                    }
+            if (confirmed) {
+                boolean success = deleteClass(groupId);
+                if (success) {
+                    CustomAlert.showSuccess("Class Deleted", 
+                            "Class " + currentGroup.getGroup_name() + " has been permanently deleted.");
+                    stage.setScene(Home.createHomeScene(Helper.loggedInUsername));
+                } else {
+                    CustomAlert.showError("Deletion Failed", 
+                            "Failed to delete the class. Please try again.");
                 }
-            });
+            }
         });
-        
         backButton.setOnAction(e -> {
             stage.setScene(Home.createHomeScene(Helper.loggedInUsername));
         });
