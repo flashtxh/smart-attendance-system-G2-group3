@@ -81,17 +81,6 @@ public class Home {
         contentSection.setStyle("-fx-padding: 40;");
         contentSection.setAlignment(Pos.CENTER_LEFT);
         
-        HBox semesterSection = new HBox(10);
-        semesterSection.setAlignment(Pos.CENTER_LEFT);
-
-        Label semesterLabel = new Label("Current Semester:");
-        semesterLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #7f8c8d;");
-
-        Label semesterValue = new Label("AY 25/26 Sem 1 ▼");
-        semesterValue.setStyle("-fx-font-size: 16px; -fx-text-fill: #2c3e50; -fx-font-weight: bold;");
-
-        semesterSection.getChildren().addAll(semesterLabel, semesterValue);
-        
         Label classLabel = new Label("Classes you teach:");
         classLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #7f8c8d;");
         
@@ -224,7 +213,6 @@ public class Home {
         logoutRow.getChildren().add(logoutButton);
         
         contentSection.getChildren().addAll(
-            semesterSection, 
             classRow, 
             classButtons, 
             actionButtonsRow,

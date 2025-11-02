@@ -17,20 +17,20 @@ import javafx.stage.Stage;
 
 public class App extends Application {
 
-    private VideoCapture capture;
-    private volatile boolean cameraActive = false;
-    private CascadeClassifier faceDetector;
-    private Map<String, List<Mat>> personHistograms = new HashMap<>();
-    private Map<String, String> userCredentials = new HashMap<>(); // username -> password
-    private Mat currentFrame;
-    private String baseImagePath = "src/main/resources/images/";
-    private String cascadePath = "src/main/resources/fxml/haarcascade_frontalface_alt.xml";
+    @SuppressWarnings("unused")private VideoCapture capture;
+    @SuppressWarnings("unused")private volatile boolean cameraActive = false;
+    @SuppressWarnings("unused")private CascadeClassifier faceDetector;
+    @SuppressWarnings("unused")private final Map<String, List<Mat>> personHistograms = new HashMap<>();
+    @SuppressWarnings("unused")private final Map<String, String> userCredentials = new HashMap<>(); // username -> password
+    @SuppressWarnings("unused")private  Mat currentFrame;
+    @SuppressWarnings("unused")private final String baseImagePath = "src/main/resources/images/";
+    @SuppressWarnings("unused")private final String cascadePath = "src/main/resources/fxml/haarcascade_frontalface_alt.xml";
 
-    private int captureCount = 0;
-    private String capturePersonName = "";
-    private boolean capturingMode = false;
-    private String loggedInUsername = "";
-    private boolean faceVerified = false;
+    @SuppressWarnings("unused")private final int captureCount = 0;
+    @SuppressWarnings("unused")private final String capturePersonName = "";
+    @SuppressWarnings("unused")private boolean capturingMode = false;
+    @SuppressWarnings("unused")private final String loggedInUsername = "";
+    @SuppressWarnings("unused")private final boolean faceVerified = false;
 
     static {
         try {
