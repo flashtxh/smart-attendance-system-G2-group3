@@ -2,30 +2,24 @@ package dev.att.smartattendance.app.pages;
 
 import java.util.List;
 
-import org.opencv.core.Mat;
-import org.opencv.videoio.VideoCapture;
-
 import dev.att.smartattendance.app.Helper;
+import dev.att.smartattendance.model.course.CourseDAO;
 import dev.att.smartattendance.model.group.Group;
 import dev.att.smartattendance.model.group.GroupDAO;
 import dev.att.smartattendance.model.professor.Professor;
 import dev.att.smartattendance.model.professor.ProfessorDAO;
-import javafx.application.Platform;
-import javafx.concurrent.Task;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 public class Home {
-
     public static Scene createHomeScene(String username) {        
         ProfessorDAO professorDAO = new ProfessorDAO();
         Professor professor = professorDAO.get_professor_by_email(username);
@@ -65,7 +59,11 @@ public class Home {
         
         VBox profSection = new VBox(2);
         profSection.setAlignment(Pos.CENTER_RIGHT);
-        Label profLabel = new Label("Prof. " + displayName);
+                
+        boolean isTA = professorDAO.is_ta(username);
+        String titlePrefix = isTA ? "T.A. " : "Prof. ";
+        
+        Label profLabel = new Label(titlePrefix + displayName);
         profLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #2c3e50;");
         profSection.getChildren().add(profLabel);
         
@@ -104,7 +102,11 @@ public class Home {
         List<Group> professorGroups;
         
         if (professorId != null) {
-            professorGroups = groupDAO.get_groups_by_professor(professorId);
+            if (isTA) {                
+                professorGroups = groupDAO.get_groups_by_ta(professorId);
+            } else {                
+                professorGroups = groupDAO.get_groups_by_professor(professorId);
+            }
         } else {            
             professorGroups = groupDAO.get_all_groups();
         }
@@ -118,7 +120,10 @@ public class Home {
                 VBox classButtonContainer = new VBox(5);
                 classButtonContainer.setAlignment(Pos.CENTER);
                 
-                String buttonLabel = group.getcourse_code() + " (" + group.getGroup_name() + ")";
+                CourseDAO courseDAO = new CourseDAO();
+                String courseCode = courseDAO.getCourseCodeById(group.getcourse_code());
+
+                String buttonLabel = courseCode + " (" + group.getGroup_name() + ")";
                 Button classBtn = new Button(buttonLabel);
                 classBtn.getStyleClass().add("class-button");
                                 
@@ -129,9 +134,9 @@ public class Home {
                     Helper.stopCamera();
                     Stage stage = (Stage) classBtn.getScene().getWindow();
                     stage.setScene(Class.createClassScene(
-                    group.getGroup_id(),      
-                    group.getGroup_name(),    
-                    displayName,              
+                        group.getGroup_id(),      
+                        group.getGroup_name(),    
+                        displayName,              
                         stage
                     ));
                 });
@@ -179,7 +184,7 @@ public class Home {
         HBox actionButtonsRow = new HBox(15);
         actionButtonsRow.setAlignment(Pos.CENTER_RIGHT);
         actionButtonsRow.getChildren().add(enrollStudentBtn);
-                
+                    
         if (username.equals("Admin")) {
             Button newClassBtn = new Button("New Class");
             newClassBtn.getStyleClass().add("new-class-button");
@@ -193,21 +198,12 @@ public class Home {
             actionButtonsRow.getChildren().add(newClassBtn);
         }
 
-        contentSection.getChildren().addAll(semesterSection, classRow, classButtons, actionButtonsRow);
-        
-        VBox bottomSection = new VBox(20);
-        bottomSection.setAlignment(Pos.CENTER);
-        bottomSection.setStyle("-fx-padding: 20;");
-        
-        ImageView webcamView = new ImageView();
-        webcamView.setFitWidth(400);
-        webcamView.setFitHeight(300);
-        webcamView.setPreserveRatio(true);
-        webcamView.setStyle("-fx-border-color: #bdc3c7; -fx-border-width: 2;");
-
-        Label cameraLabel = new Label("Live Camera Feed (Optional)");
-        cameraLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #7f8c8d;");
-        
+        enrollStudentBtn.setOnAction(e -> {
+            Helper.stopCamera();
+            Stage stage = (Stage) enrollStudentBtn.getScene().getWindow();
+            stage.setScene(Enrollement.createEnrollmentInfoScene(stage));
+        });
+                
         Button logoutButton = new Button("Logout");
         logoutButton.getStyleClass().add("logout-button");
 
@@ -218,16 +214,25 @@ public class Home {
             Stage stage = (Stage) logoutButton.getScene().getWindow();
             stage.setScene(Login.createLoginScene(stage));
         });
-
-        bottomSection.getChildren().addAll(cameraLabel, webcamView, logoutButton);
-
-        enrollStudentBtn.setOnAction(e -> {
-            Helper.stopCamera();
-            Stage stage = (Stage) enrollStudentBtn.getScene().getWindow();
-            stage.setScene(Enrollement.createEnrollmentInfoScene(stage));
-        });
         
-        mainContainer.getChildren().addAll(headerSection, contentSection, bottomSection);
+        Region logoutSpacer = new Region();
+        logoutSpacer.setMinHeight(40);
+        
+        HBox logoutRow = new HBox();
+        logoutRow.setAlignment(Pos.CENTER);
+        logoutRow.setStyle("-fx-padding: 20 0 20 0;");
+        logoutRow.getChildren().add(logoutButton);
+        
+        contentSection.getChildren().addAll(
+            semesterSection, 
+            classRow, 
+            classButtons, 
+            actionButtonsRow,
+            logoutSpacer,
+            logoutRow
+        );
+                
+        mainContainer.getChildren().addAll(headerSection, contentSection);
 
         ScrollPane scrollPane = new ScrollPane(mainContainer);
         scrollPane.setFitToWidth(true);
@@ -237,41 +242,5 @@ public class Home {
                 
         scene.getStylesheets().add(Home.class.getResource("/css/styles.css").toExternalForm());
         return scene;
-    }
-    
-    public static void startSimpleCameraFeed(ImageView imageView) {
-        Helper.capture = new VideoCapture(0);
-        if (!Helper.capture.isOpened()) {
-            return;
-        }
-        Helper.cameraActive = true;
-
-        Task<Void> frameGrabber = new Task<>() {
-            @Override
-            protected Void call() {
-                Mat frame = new Mat();
-
-                while (Helper.cameraActive) {
-                    if (Helper.capture.read(frame)) {
-                        Helper.currentFrame = frame.clone();
-                        Image imageToShow = Helper.mat2Image(Helper.currentFrame);
-                        Platform.runLater(() -> imageView.setImage(imageToShow));
-                    }
-
-                    try {
-                        Thread.sleep(33);
-                    } catch (InterruptedException e) {
-                        break;
-                    }
-                }
-
-                frame.release();
-                return null;
-            }
-        };
-
-        Thread th = new Thread(frameGrabber);
-        th.setDaemon(true);
-        th.start();
     }
 }

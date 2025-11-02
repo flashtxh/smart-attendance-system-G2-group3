@@ -34,6 +34,7 @@ import ai.onnxruntime.OrtSession;
 import dev.att.smartattendance.app.CustomAlert;
 import dev.att.smartattendance.app.Helper;
 import dev.att.smartattendance.app.Loader;
+import dev.att.smartattendance.model.course.CourseDAO;
 import dev.att.smartattendance.model.group.Group;
 import dev.att.smartattendance.model.group.GroupDAO;
 import dev.att.smartattendance.model.student.Student;
@@ -82,8 +83,10 @@ public class Class {
                 break;
             }
         }
+        CourseDAO courseDAO = new CourseDAO();
+        String courseCode2 = courseDAO.getCourseCodeById(courseCode);
 
-        Label titleLabel = new Label(courseCode + " (" + groupName + ") - Attendance");
+        Label titleLabel = new Label(courseCode2 + " (" + groupName + ") - Attendance");
         titleLabel.getStyleClass().add("home-title");
         
         Button backButton = new Button("← Back to Home");

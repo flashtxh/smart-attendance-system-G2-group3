@@ -54,4 +54,26 @@ public class CourseDAO {
 
         return courses;
     }
+
+    public String getCourseCodeById(String course_id) {
+        String sql = "SELECT course_code FROM courses WHERE course_id = ?";
+        String courseCode = null;
+
+        try (
+            Connection conn = DatabaseManager.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql);
+        ) {
+            ps.setString(1, course_id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    courseCode = rs.getString("course_code");
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Failed to fetch course code: " + e.getMessage());
+        }
+
+        return courseCode != null ? courseCode : "Unknown";
+    }
+
 }

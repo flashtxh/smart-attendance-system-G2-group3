@@ -99,9 +99,11 @@ public class ClassManagement {
         ProfessorDAO professorDAO = new ProfessorDAO();
         Map<String, String> professorMap = new HashMap<>();
         for (Professor prof : professorDAO.get_all_professors()) {
-            String displayText = prof.getUsername() + " (" + prof.getEmail() + ")";
-            professorComboBox.getItems().add(displayText);
-            professorMap.put(displayText, prof.getProfessor_id());
+            if (!professorDAO.is_ta(prof.getEmail())) {
+                String displayText = prof.getUsername() + " (" + prof.getEmail() + ")";
+                professorComboBox.getItems().add(displayText);
+                professorMap.put(displayText, prof.getProfessor_id());
+            }
         }
         
         // Info label showing course details when selected
@@ -180,6 +182,7 @@ public class ClassManagement {
         
         return scene;
     }
+
     public static Scene createStudentAssignmentScene(Stage stage, Course course, 
             String groupName, String professorId) {
         
@@ -393,10 +396,10 @@ public class ClassManagement {
             try (PreparedStatement ps = conn.prepareStatement(groupSql)) {
                 ps.setString(1, groupId);
                 ps.setString(2, groupName);
-                ps.setString(3, course.getCourse_code());
+                ps.setString(3, course.getCourse_id());
                 ps.setString(4, professorId);
                 ps.setString(5, course.getYear());      // Changed from setInt to setString
-                ps.setInt(6, course.getSemester());
+                ps.setString(6, "Term "+String.valueOf(course.getSemester()));
                 ps.executeUpdate();
             }
                         
@@ -497,11 +500,35 @@ public class ClassManagement {
                     "-fx-cursor: hand; -fx-font-weight: bold;");
         });
         
+                // In ClassManagement.java, in buttonBox.getChildren().addAll(...):
+
+        Button manageTAsButton = new Button("👥 Manage TAs");
+        manageTAsButton.setStyle("-fx-background-color: #3b82f6; -fx-text-fill: white; " +
+                "-fx-font-size: 14px; -fx-padding: 12 24; -fx-background-radius: 8; " +
+                "-fx-cursor: hand; -fx-font-weight: bold;");
+
+        manageTAsButton.setOnMouseEntered(e -> {
+            manageTAsButton.setStyle("-fx-background-color: #2563eb; -fx-text-fill: white; " +
+                    "-fx-font-size: 14px; -fx-padding: 12 24; -fx-background-radius: 8; " +
+                    "-fx-cursor: hand; -fx-font-weight: bold; -fx-scale-x: 1.05; -fx-scale-y: 1.05;");
+        });
+
+        manageTAsButton.setOnMouseExited(e -> {
+            manageTAsButton.setStyle("-fx-background-color: #3b82f6; -fx-text-fill: white; " +
+                    "-fx-font-size: 14px; -fx-padding: 12 24; -fx-background-radius: 8; " +
+                    "-fx-cursor: hand; -fx-font-weight: bold;");
+        });
+
+        manageTAsButton.setOnAction(e -> {
+            Helper.stopCamera();
+            stage.setScene(TAManagement.createManageTAsScene(stage, groupId, currentGroup.getGroup_name()));
+        });
+
         Button backButton = new Button("Back to Home");
         backButton.getStyleClass().add("back-button");
         backButton.setPrefWidth(180);
         
-        buttonBox.getChildren().addAll(deleteClassButton, backButton);
+        buttonBox.getChildren().addAll(manageTAsButton, deleteClassButton, backButton);
         
         deleteClassButton.setOnAction(e -> {
             boolean confirmed = CustomConfirmDialog.showDeleteClassConfirmation(

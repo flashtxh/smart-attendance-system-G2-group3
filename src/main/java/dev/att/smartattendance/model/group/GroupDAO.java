@@ -88,4 +88,35 @@ public class GroupDAO {
 
         return groups;
     }
+
+    public List<Group> get_groups_by_ta(String taId) {
+        List<Group> groups = new ArrayList<>();
+        String sql = "SELECT g.* FROM groups g " +
+                    "INNER JOIN ta_assignments ta ON g.group_id = ta.group_id " +
+                    "WHERE ta.ta_id = ?";
+        
+        try (
+            Connection conn = DatabaseManager.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql);
+        ) {
+            ps.setString(1, taId);
+            ResultSet rs = ps.executeQuery();
+            
+            while (rs.next()) {
+                Group group = new Group(
+                    rs.getString("group_id"),
+                    rs.getString("group_name"),
+                    rs.getString("course_code"),
+                    rs.getString("professor_id"),
+                    rs.getString("academic_year"),
+                    rs.getString("term")
+                );
+                groups.add(group);
+            }
+        } catch (SQLException e) {
+            System.err.println("Error retrieving groups for TA: " + e.getMessage());
+        }
+        
+        return groups;
+    }
 }
