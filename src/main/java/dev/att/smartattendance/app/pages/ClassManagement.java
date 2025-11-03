@@ -40,7 +40,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 public class ClassManagement {
-        
+
     public static Scene createNewClassScene(Stage stage) {
         VBox mainContainer = new VBox(30);
         mainContainer.setStyle("-fx-background-color: #0f172a;");
@@ -64,22 +64,101 @@ public class ClassManagement {
         Label courseLabel = new Label("Select Course:");
         courseLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #f1f5f9; -fx-font-weight: 600;");
         
-        ComboBox<String> courseComboBox = new ComboBox<>();
-        courseComboBox.setPromptText("Choose a course");
-        courseComboBox.setStyle("-fx-font-size: 14px; -fx-pref-width: 400; -fx-pref-height: 45; " +
-                "-fx-background-color: #0f172a; -fx-text-fill: #f1f5f9; -fx-border-color: #3b82f6; " +
-                "-fx-border-width: 2; -fx-border-radius: 8; -fx-background-radius: 8;");
+        TextField courseSearchField = new TextField();
+        courseSearchField.setPromptText("Search course by code or name...");
+        courseSearchField.setStyle("-fx-font-size: 14px; -fx-padding: 12; -fx-pref-width: 400; " +
+                "-fx-background-color: #0f172a; -fx-text-fill: #f1f5f9; -fx-prompt-text-fill: #64748b; " +
+                "-fx-background-radius: 8; -fx-border-color: #3b82f6; -fx-border-width: 2; -fx-border-radius: 8;");
+        
+        Label noResultsLabel = new Label("No courses found matching your search");
+        noResultsLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #94a3b8; -fx-padding: 20; " +
+                "-fx-font-style: italic;");
+        noResultsLabel.setVisible(false);
+        
+        VBox courseResultsContainer = new VBox(8);
+        courseResultsContainer.setStyle("-fx-background-color: #0f172a; -fx-padding: 10; " +
+                "-fx-background-radius: 8; -fx-border-color: #475569; -fx-border-width: 1; " +
+                "-fx-border-radius: 8;");
+        courseResultsContainer.getChildren().add(noResultsLabel);
+        
+        ScrollPane courseResultsScroll = new ScrollPane(courseResultsContainer);
+        courseResultsScroll.setFitToWidth(true);
+        courseResultsScroll.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
+        courseResultsScroll.setPrefHeight(250);
+        courseResultsScroll.setMaxHeight(250);
+        courseResultsScroll.setMinHeight(250);
         
         CourseDAO courseDAO = new CourseDAO();
         List<Course> allCourses = courseDAO.get_all_courses();
         allCourses.sort((c1, c2) -> c1.getCourse_code().compareToIgnoreCase(c2.getCourse_code()));
-
-        Map<String, Course> courseMap = new HashMap<>();
+        
+        final Course[] selectedCourse = {null};
+        
         for (Course course : allCourses) {
-            String displayText = course.getCourse_code() + " - " + course.getCourse_name();
-            courseComboBox.getItems().add(displayText);
-            courseMap.put(displayText, course);
+            HBox resultRow = createCourseResultRow(course, courseSearchField, selectedCourse, courseLabel, courseResultsScroll);
+            courseResultsContainer.getChildren().add(resultRow);
         }
+        
+        Label courseInfoLabel = new Label("");
+        courseInfoLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #60a5fa; -fx-font-weight: 600; " +
+                "-fx-padding: 10; -fx-background-color: rgba(59, 130, 246, 0.1); " +
+                "-fx-background-radius: 8; -fx-border-color: #3b82f6; -fx-border-width: 1; -fx-border-radius: 8;");
+        courseInfoLabel.setVisible(false);
+        
+        courseSearchField.textProperty().addListener((obs, oldVal, newVal) -> {
+            String searchText = newVal.toLowerCase().trim();
+            courseResultsContainer.getChildren().clear();
+            
+            if (selectedCourse[0] != null && 
+                newVal.equals(selectedCourse[0].getCourse_code() + " - " + selectedCourse[0].getCourse_name())) {
+                courseInfoLabel.setText("Year: " + selectedCourse[0].getYear() + 
+                                       "  |  Semester: " + selectedCourse[0].getSemester());
+                courseInfoLabel.setVisible(true);
+                // Change styling to show selection
+                courseSearchField.setStyle("-fx-font-size: 14px; -fx-padding: 12; -fx-pref-width: 400; " +
+                        "-fx-background-color: #0f172a; -fx-text-fill: #10b981; -fx-prompt-text-fill: #64748b; " +
+                        "-fx-background-radius: 8; -fx-border-color: #10b981; -fx-border-width: 2; -fx-border-radius: 8; " +
+                        "-fx-font-weight: bold;");
+                return;
+            } else {
+                courseSearchField.setStyle("-fx-font-size: 14px; -fx-padding: 12; -fx-pref-width: 400; " +
+                        "-fx-background-color: #0f172a; -fx-text-fill: #f1f5f9; -fx-prompt-text-fill: #64748b; " +
+                        "-fx-background-radius: 8; -fx-border-color: #3b82f6; -fx-border-width: 2; -fx-border-radius: 8;");
+            }
+            
+            if (searchText.isEmpty()) {
+                noResultsLabel.setVisible(false);
+                for (Course course : allCourses) {
+                    HBox resultRow = createCourseResultRow(course, courseSearchField, selectedCourse, courseInfoLabel, courseResultsScroll);
+                    courseResultsContainer.getChildren().add(resultRow);
+                }
+                courseInfoLabel.setVisible(false);
+                selectedCourse[0] = null;
+                return;
+            }
+            
+            boolean hasResults = false;
+            for (Course course : allCourses) {
+                boolean matches = course.getCourse_code().toLowerCase().contains(searchText) ||
+                                course.getCourse_name().toLowerCase().contains(searchText);
+                
+                if (matches) {
+                    hasResults = true;
+                    HBox resultRow = createCourseResultRow(course, courseSearchField, selectedCourse, courseInfoLabel, courseResultsScroll);
+                    courseResultsContainer.getChildren().add(resultRow);
+                }
+            }
+            
+            if (!hasResults) {
+                noResultsLabel.setVisible(true);
+                courseResultsContainer.getChildren().add(noResultsLabel);
+            } else {
+                noResultsLabel.setVisible(false);
+            }
+            
+            courseInfoLabel.setVisible(false);
+            selectedCourse[0] = null;
+        });
                 
         Label groupNameLabel = new Label("Group Name:");
         groupNameLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #f1f5f9; -fx-font-weight: 600;");
@@ -108,33 +187,13 @@ public class ClassManagement {
                 professorMap.put(displayText, prof.getProfessor_id());
             }
         }
-        
-        // Info label showing course details when selected
-        Label courseInfoLabel = new Label("");
-        courseInfoLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #60a5fa; -fx-font-weight: 600; " +
-                "-fx-padding: 10; -fx-background-color: rgba(59, 130, 246, 0.1); " +
-                "-fx-background-radius: 8; -fx-border-color: #3b82f6; -fx-border-width: 1; -fx-border-radius: 8;");
-        courseInfoLabel.setVisible(false);
-        
-        // Update info label when course is selected
-        courseComboBox.setOnAction(e -> {
-            String selected = courseComboBox.getValue();
-            if (selected != null) {
-                Course course = courseMap.get(selected);
-                courseInfoLabel.setText("Year: " + course.getYear() + 
-                                       "  |  Semester: " + course.getSemester());
-                courseInfoLabel.setVisible(true);
-            } else {
-                courseInfoLabel.setVisible(false);
-            }
-        });
                 
         Label errorLabel = new Label();
         errorLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #ef4444; -fx-font-weight: 600;");
         errorLabel.setVisible(false);
         
         formContainer.getChildren().addAll(
-            courseLabel, courseComboBox, courseInfoLabel,
+            courseLabel, courseSearchField, courseResultsScroll, courseInfoLabel,
             groupNameLabel, groupNameField,
             professorLabel, professorComboBox,
             errorLabel
@@ -154,20 +213,18 @@ public class ClassManagement {
         buttonBox.getChildren().addAll(nextButton, cancelButton);
                 
         nextButton.setOnAction(e -> {
-            String selectedCourse = courseComboBox.getValue();
             String groupName = groupNameField.getText().trim();
             String selectedProfessor = professorComboBox.getValue();
             
-            if (selectedCourse == null || groupName.isEmpty() || selectedProfessor == null) {
+            if (selectedCourse[0] == null || groupName.isEmpty() || selectedProfessor == null) {
                 errorLabel.setText("Please fill in all fields");
                 errorLabel.setVisible(true);
                 return;
             }
             
-            Course course = courseMap.get(selectedCourse);
             String professorId = professorMap.get(selectedProfessor);
                         
-            stage.setScene(createStudentAssignmentScene(stage, course, groupName, professorId));
+            stage.setScene(createStudentAssignmentScene(stage, selectedCourse[0], groupName, professorId));
         });
         
         cancelButton.setOnAction(e -> {
@@ -185,7 +242,48 @@ public class ClassManagement {
         
         return scene;
     }
-
+    
+    private static HBox createCourseResultRow(Course course, TextField searchField, 
+            Course[] selectedCourse, Label infoLabel, ScrollPane resultsScroll) {
+        HBox resultRow = new HBox(10);
+        resultRow.setAlignment(Pos.CENTER_LEFT);
+        resultRow.setStyle("-fx-background-color: #1e293b; -fx-padding: 10; " +
+                "-fx-background-radius: 6; -fx-cursor: hand;");
+        
+        Label codeLabel = new Label(course.getCourse_code());
+        codeLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #60a5fa; -fx-font-weight: bold;");
+        
+        Label nameLabel = new Label(course.getCourse_name());
+        nameLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #f1f5f9;");
+        
+        Label yearLabel = new Label(course.getYear() + " S" + course.getSemester());
+        yearLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #94a3b8;");
+        
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        
+        resultRow.getChildren().addAll(codeLabel, nameLabel, spacer, yearLabel);
+        
+        resultRow.setOnMouseEntered(e -> {
+            resultRow.setStyle("-fx-background-color: #334155; -fx-padding: 10; " +
+                    "-fx-background-radius: 6; -fx-cursor: hand;");
+        });
+        
+        resultRow.setOnMouseExited(e -> {
+            resultRow.setStyle("-fx-background-color: #1e293b; -fx-padding: 10; " +
+                    "-fx-background-radius: 6; -fx-cursor: hand;");
+        });
+        
+        resultRow.setOnMouseClicked(e -> {
+            selectedCourse[0] = course;
+            searchField.setText(course.getCourse_code() + " - " + course.getCourse_name());
+            infoLabel.setText("Year: " + course.getYear() + "  |  Semester: " + course.getSemester());
+            infoLabel.setVisible(true);
+        });
+        
+        return resultRow;
+    }
+    
     public static Scene createStudentAssignmentScene(Stage stage, Course course, 
             String groupName, String professorId) {
         
