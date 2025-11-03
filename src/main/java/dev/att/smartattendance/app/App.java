@@ -44,8 +44,8 @@ public class App extends Application {
 
     static {
         try {
-            // System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
-            System.load("/usr/local/opencv/share/java/opencv4/libopencv_java480.dylib");
+            System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
+            // System.load("/usr/local/opencv/share/java/opencv4/libopencv_java480.dylib");
             // // For MAC
         } catch (UnsatisfiedLinkError e) {
             System.err.println("OpenCV library not found. Camera features will be disabled.");
