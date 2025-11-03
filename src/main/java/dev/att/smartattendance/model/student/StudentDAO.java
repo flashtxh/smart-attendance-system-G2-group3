@@ -73,14 +73,13 @@ public class StudentDAO {
         return students;
     }
     
-    // FIXED: Now actually filters by group_id using a JOIN!
     public List<Student> get_students_by_group(String group_id) {
         List<Student> students = new ArrayList<>();
         String sql = "SELECT s.student_id, s.name, s.email " +
                      "FROM students s " +
                      "INNER JOIN student_group sg ON s.student_id = sg.student_id " +
                      "WHERE sg.group_id = ? " +
-                     "ORDER BY s.name";
+                     "ORDER BY LOWER(s.name)";
 
         try (
             Connection conn = DatabaseManager.getConnection();

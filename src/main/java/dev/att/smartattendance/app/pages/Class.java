@@ -145,7 +145,7 @@ public class Class {
         studentList.setStyle("-fx-padding: 15 0;");
         
         List<Student> students = getStudentsForGroup(groupId);
-
+        
         if (students.isEmpty()) {
             Label noStudentsLabel = new Label("No students enrolled in this class yet");
             noStudentsLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #94a3b8; -fx-font-style: italic;");
