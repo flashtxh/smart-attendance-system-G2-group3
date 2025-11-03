@@ -36,7 +36,7 @@ public class GroupDAO {
 
     public List<Group> get_all_groups() {
         List<Group> groups = new ArrayList<>();
-        String sql = "SELECT * FROM groups";
+        String sql = "SELECT g.group_id, g.group_name, g.course_code, g.professor_id, g.academic_year, g.term FROM groups g INNER JOIN courses c ON g.course_code = c.course_id ORDER BY c.course_code";
 
         try (
             Connection conn = DatabaseManager.getConnection();
@@ -62,7 +62,7 @@ public class GroupDAO {
 
     public List<Group> get_groups_by_professor(String professor_id) {
         List<Group> groups = new ArrayList<>();
-        String sql = "SELECT * FROM groups WHERE professor_id = ?";
+        String sql = "SELECT g.group_id, g.group_name, g.course_code, g.professor_id, g.academic_year, g.term FROM groups g INNER JOIN courses c ON g.course_code = c.course_id WHERE professor_id = ? ORDER BY c.course_code";
 
         try (
             Connection conn = DatabaseManager.getConnection();
