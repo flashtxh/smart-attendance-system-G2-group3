@@ -105,7 +105,23 @@
     -fx-scale-y: 1.08;
     -fx-effect: dropshadow(gaussian, rgba(6, 182, 212, 0.8), 25, 0, 0, 10);
 }
+.new-course-button {
+    -fx-background-color: linear-gradient(from 0% 0% to 100% 100%, #06d4b8 0%, #08b2b2 100%);
+    -fx-text-fill: white;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-padding: 15 35;
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-effect: dropshadow(gaussian, rgba(6, 182, 212, 0.5), 15, 0, 0, 5);
+}
 
+.new-course-button:hover {
+    -fx-background-color: linear-gradient(from 0% 0% to 100% 100%, #089eb2 0%, #0e8590 100%);
+    -fx-scale-x: 1.08;
+    -fx-scale-y: 1.08;
+    -fx-effect: dropshadow(gaussian, rgba(6, 182, 212, 0.8), 25, 0, 0, 10);
+}
 .logout-button {
     -fx-background-color: linear-gradient(from 0% 0% to 100% 100%, #dc2626 0%, #991b1b 100%);
     -fx-text-fill: white;

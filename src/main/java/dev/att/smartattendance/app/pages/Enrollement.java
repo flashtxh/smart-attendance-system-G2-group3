@@ -5,7 +5,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.opencv.core.Mat;
@@ -20,6 +23,11 @@ import org.opencv.videoio.VideoCapture;
 
 import dev.att.smartattendance.app.Helper;
 import dev.att.smartattendance.app.Loader;
+import dev.att.smartattendance.app.pages.customAlert.CustomAlert;
+import dev.att.smartattendance.model.course.Course;
+import dev.att.smartattendance.model.course.CourseDAO;
+import dev.att.smartattendance.model.group.Group;
+import dev.att.smartattendance.model.group.GroupDAO;
 import dev.att.smartattendance.util.DatabaseManager;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
@@ -28,7 +36,9 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -57,7 +67,7 @@ public class Enrollement {
         return false;
     }
     
-    private static boolean insertStudent(String name, String email) {
+    private static String insertStudent(String name, String email) {
         String studentId = UUID.randomUUID().toString();
         String sql = "INSERT INTO students (student_id, name, email) VALUES (?, ?, ?)";
         
@@ -71,10 +81,35 @@ public class Enrollement {
             
             ps.executeUpdate();
             System.out.println("Student inserted successfully: " + name + " (" + email + ") with ID: " + studentId);
-            return true;
+            return studentId;
             
         } catch (SQLException e) {
             System.err.println("Failed to insert student: " + e.getMessage());
+            return null;
+        }
+    }
+    
+    private static boolean assignStudentToGroups(String studentId, List<String> groupIds) {
+        if (groupIds.isEmpty()) {
+            return true; 
+        }
+        
+        String sql = "INSERT INTO student_group (student_id, group_id, enrollment_date) VALUES (?, ?, CURRENT_DATE)";
+        
+        try (
+            Connection conn = DatabaseManager.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql);
+        ) {
+            for (String groupId : groupIds) {
+                ps.setString(1, studentId);
+                ps.setString(2, groupId);
+                ps.addBatch();
+            }
+            ps.executeBatch();
+            System.out.println("Student assigned to " + groupIds.size() + " groups");
+            return true;
+        } catch (SQLException e) {
+            System.err.println("Failed to assign student to groups: " + e.getMessage());
             return false;
         }
     }
@@ -82,20 +117,21 @@ public class Enrollement {
     public static Scene createEnrollmentInfoScene(Stage stage) {
         VBox mainContainer = new VBox(30);
         mainContainer.setStyle("-fx-background-color: #0f172a;");
-        mainContainer.setAlignment(Pos.CENTER);
+        mainContainer.setAlignment(Pos.TOP_CENTER);
         mainContainer.setPadding(new Insets(50));
         
         Label titleLabel = new Label("Student Enrollment");
         titleLabel.setStyle("-fx-font-size: 36px; -fx-font-weight: bold; -fx-text-fill: #60a5fa;");
         
-        Label subtitleLabel = new Label("Enter student information to begin face enrollment");
+        Label subtitleLabel = new Label("Enter student information and assign to classes");
         subtitleLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #94a3b8;");
         
         VBox formContainer = new VBox(20);
         formContainer.setStyle("-fx-background-color: #1e293b; -fx-padding: 40; -fx-background-radius: 15; " +
                 "-fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.5), 20, 0, 0, 5);");
         formContainer.setAlignment(Pos.CENTER_LEFT);
-        formContainer.setMaxWidth(500);
+        formContainer.setMaxWidth(600);
+        
         
         Label nameLabel = new Label("Student Name:");
         nameLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #f1f5f9; -fx-font-weight: 600;");
@@ -105,7 +141,7 @@ public class Enrollement {
         nameField.setStyle("-fx-font-size: 14px; -fx-padding: 12; -fx-background-color: #0f172a; " +
                 "-fx-text-fill: #f1f5f9; -fx-prompt-text-fill: #64748b; -fx-background-radius: 8; " +
                 "-fx-border-color: #3b82f6; -fx-border-width: 2; -fx-border-radius: 8;");
-        nameField.setPrefWidth(400);
+        nameField.setPrefWidth(500);
         
         Label emailLabel = new Label("Student Email:");
         emailLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #f1f5f9; -fx-font-weight: 600;");
@@ -115,13 +151,139 @@ public class Enrollement {
         emailField.setStyle("-fx-font-size: 14px; -fx-padding: 12; -fx-background-color: #0f172a; " +
                 "-fx-text-fill: #f1f5f9; -fx-prompt-text-fill: #64748b; -fx-background-radius: 8; " +
                 "-fx-border-color: #3b82f6; -fx-border-width: 2; -fx-border-radius: 8;");
-        emailField.setPrefWidth(400);
+        emailField.setPrefWidth(500);
+        
+        
+        boolean isAdmin = "Admin".equalsIgnoreCase(Helper.loggedInUsername);
+        
+        Map<String, ComboBox<String>> courseComboBoxes = new HashMap<>();
+        Map<String, Map<String, String>> courseGroupMaps = new HashMap<>();
+        
+        
+        if (isAdmin) {
+            Label classesLabel = new Label("Assign to Classes (Optional):");
+            classesLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #f1f5f9; -fx-font-weight: 600; -fx-padding: 20 0 0 0;");
+            
+            Label classesSubtitle = new Label("Select one class per course - Type to search");
+            classesSubtitle.setStyle("-fx-font-size: 13px; -fx-text-fill: #94a3b8; -fx-font-style: italic;");
+            
+            
+            TextField courseSearchField = new TextField();
+            courseSearchField.setPromptText("Search courses by code or name...");
+            courseSearchField.setStyle("-fx-font-size: 14px; -fx-padding: 10; -fx-background-color: #0f172a; " +
+                    "-fx-text-fill: #f1f5f9; -fx-prompt-text-fill: #64748b; -fx-background-radius: 8; " +
+                    "-fx-border-color: #3b82f6; -fx-border-width: 2; -fx-border-radius: 8;");
+            courseSearchField.setPrefWidth(460);
+            
+            VBox classSelectionBox = new VBox(15);
+            classSelectionBox.setStyle("-fx-padding: 15; -fx-background-color: #0f172a; " +
+                    "-fx-background-radius: 8; -fx-border-color: #475569; -fx-border-width: 1; -fx-border-radius: 8;");
+            
+            CourseDAO courseDAO = new CourseDAO();
+            GroupDAO groupDAO = new GroupDAO();
+            List<Course> allCourses = courseDAO.get_all_courses();
+            
+            
+            List<VBox> allCourseBoxes = new ArrayList<>();
+            
+            if (allCourses.isEmpty()) {
+                Label noCoursesLabel = new Label("No courses/classes available yet");
+                noCoursesLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #94a3b8; -fx-font-style: italic;");
+                classSelectionBox.getChildren().add(noCoursesLabel);
+            } else {
+                for (Course course : allCourses) {
+                    List<Group> courseGroups = new ArrayList<>();
+                    for (Group group : groupDAO.get_all_groups()) {
+                        if (group.getcourse_code().equals(course.getCourse_id())) {
+                            courseGroups.add(group);
+                        }
+                    }
+                    
+                    if (!courseGroups.isEmpty()) {
+                        VBox courseBox = new VBox(8);
+                        
+                        Label courseLabel = new Label(course.getCourse_code() + " - " + course.getCourse_name());
+                        courseLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #60a5fa; -fx-font-weight: 600;");
+                        
+                        ComboBox<String> groupComboBox = new ComboBox<>();
+                        groupComboBox.setPromptText("Select a class (optional)");
+                        groupComboBox.setStyle("-fx-font-size: 13px; -fx-pref-width: 460; -fx-pref-height: 40; " +
+                                "-fx-background-color: #1e293b; -fx-text-fill: #f1f5f9; -fx-border-color: #3b82f6; " +
+                                "-fx-border-width: 1; -fx-border-radius: 8; -fx-background-radius: 8;");
+                        
+                        groupComboBox.getItems().add("None - Don't assign to this course");
+                        
+                        Map<String, String> groupMap = new HashMap<>();
+                        for (Group group : courseGroups) {
+                            String displayText = group.getGroup_name() + " (" + group.getAcademic_year() + " " + group.getTerm() + ")";
+                            groupComboBox.getItems().add(displayText);
+                            groupMap.put(displayText, group.getGroup_id());
+                        }
+                        
+                        groupComboBox.setValue("None - Don't assign to this course");
+                        
+                        courseComboBoxes.put(course.getCourse_id(), groupComboBox);
+                        courseGroupMaps.put(course.getCourse_id(), groupMap);
+                        
+                        courseBox.getChildren().addAll(courseLabel, groupComboBox);
+                        courseBox.setUserData(course); 
+                        allCourseBoxes.add(courseBox);
+                        classSelectionBox.getChildren().add(courseBox);
+                    }
+                }
+            }
+            
+            
+            courseSearchField.textProperty().addListener((obs, oldVal, newVal) -> {
+                String searchText = newVal.toLowerCase().trim();
+                classSelectionBox.getChildren().clear();
+                
+                if (searchText.isEmpty()) {
+                    
+                    classSelectionBox.getChildren().addAll(allCourseBoxes);
+                } else {
+                    
+                    for (VBox courseBox : allCourseBoxes) {
+                        Course course = (Course) courseBox.getUserData();
+                        boolean matches = course.getCourse_code().toLowerCase().contains(searchText) ||
+                                        course.getCourse_name().toLowerCase().contains(searchText);
+                        
+                        if (matches) {
+                            classSelectionBox.getChildren().add(courseBox);
+                        }
+                    }
+                    
+                    
+                    if (classSelectionBox.getChildren().isEmpty()) {
+                        Label noResultsLabel = new Label("No courses found matching \"" + searchText + "\"");
+                        noResultsLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #94a3b8; -fx-font-style: italic;");
+                        classSelectionBox.getChildren().add(noResultsLabel);
+                    }
+                }
+            });
+            
+            ScrollPane classScrollPane = new ScrollPane(classSelectionBox);
+            classScrollPane.setFitToWidth(true);
+            classScrollPane.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
+            classScrollPane.setMaxHeight(300);
+            
+            formContainer.getChildren().addAll(
+                nameLabel, nameField, 
+                emailLabel, emailField,
+                classesLabel, classesSubtitle, courseSearchField, classScrollPane
+            );
+        } else {
+            formContainer.getChildren().addAll(
+                nameLabel, nameField, 
+                emailLabel, emailField
+            );
+        }
         
         Label errorLabel = new Label();
         errorLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #ef4444; -fx-font-weight: 600;");
         errorLabel.setVisible(false);
-
-        formContainer.getChildren().addAll(nameLabel, nameField, emailLabel, emailField, errorLabel);
+        
+        formContainer.getChildren().add(errorLabel);
         
         HBox buttonBox = new HBox(15);
         buttonBox.setAlignment(Pos.CENTER);
@@ -165,10 +327,37 @@ public class Enrollement {
                 return;
             }
             
-            if (!insertStudent(name, email)) {
+            String studentId = insertStudent(name, email);
+            
+            if (studentId == null) {
                 errorLabel.setText("Failed to add student to database. Please try again.");
                 errorLabel.setVisible(true);
                 return;
+            }
+            
+            if (isAdmin) {
+                List<String> selectedGroupIds = new ArrayList<>();
+                for (Map.Entry<String, ComboBox<String>> entry : courseComboBoxes.entrySet()) {
+                    String courseId = entry.getKey();
+                    ComboBox<String> comboBox = entry.getValue();
+                    String selectedValue = comboBox.getValue();
+                    
+                    if (selectedValue != null && !selectedValue.startsWith("None")) {
+                        Map<String, String> groupMap = courseGroupMaps.get(courseId);
+                        String groupId = groupMap.get(selectedValue);
+                        if (groupId != null) {
+                            selectedGroupIds.add(groupId);
+                        }
+                    }
+                }
+                
+                if (!selectedGroupIds.isEmpty()) {
+                    boolean assignSuccess = assignStudentToGroups(studentId, selectedGroupIds);
+                    if (!assignSuccess) {
+                        CustomAlert.showWarning("Partial Success", 
+                            "Student was created but failed to assign to some classes. You can assign them manually later.");
+                    }
+                }
             }
             
             stage.setScene(createEnrollmentScene(stage, name, email));
@@ -181,7 +370,7 @@ public class Enrollement {
 
         mainContainer.getChildren().addAll(titleLabel, subtitleLabel, formContainer, buttonBox);
 
-        javafx.scene.control.ScrollPane scrollPane = new javafx.scene.control.ScrollPane(mainContainer);
+        ScrollPane scrollPane = new ScrollPane(mainContainer);
         scrollPane.setFitToWidth(true);
         scrollPane.setStyle("-fx-background-color: #0f172a;");
 
@@ -190,7 +379,6 @@ public class Enrollement {
         
         return scene;
     }
-        
     public static Scene createEnrollmentScene(Stage stage, String username, String email) {
         VBox mainContainer = new VBox(25);
         mainContainer.setStyle("-fx-background-color: #0f172a;");
@@ -243,7 +431,7 @@ public class Enrollement {
 
         mainContainer.getChildren().add(layout);
 
-        javafx.scene.control.ScrollPane scrollPane = new javafx.scene.control.ScrollPane(mainContainer);
+        ScrollPane scrollPane = new ScrollPane(mainContainer);
         scrollPane.setFitToWidth(true);
         scrollPane.setStyle("-fx-background-color: #0f172a;");
 
@@ -366,7 +554,7 @@ public class Enrollement {
                 alert.setTitle("Enrollment Complete");
                 alert.setHeaderText("Success!");
                 alert.setContentText("Face enrollment completed for " + Helper.capturePersonName +
-                        " (" + Helper.capturePersonEmail + ").\n\nStudent has been added to the database.");
+                        " (" + Helper.capturePersonEmail + ").\n\nStudent has been added to the database and assigned to selected classes.");
                 alert.showAndWait();
 
                 stage.setScene(Home.createHomeScene(Helper.loggedInUsername));

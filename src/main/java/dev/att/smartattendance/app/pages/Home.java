@@ -88,10 +88,8 @@ public class Home {
         boolean isAdmin = username.equals("Admin");
         
         if (isAdmin) {
-            // ADMIN VIEW - Show courses as buttons
             contentSection.getChildren().add(createAdminCoursesView(displayName));
         } else {
-            // PROFESSOR/TA VIEW - Simple list
             contentSection.getChildren().add(createProfessorView(professorId, displayName, isTA));
         }
         
@@ -104,6 +102,15 @@ public class Home {
         actionButtonsRow.getChildren().add(enrollStudentBtn);
                     
         if (isAdmin) {
+            Button newCourseBtn = new Button("Add Course");
+            newCourseBtn.getStyleClass().add("new-course-button");
+
+            newCourseBtn.setOnAction(e -> {
+                Helper.stopCamera();
+                Stage stage = (Stage) newCourseBtn.getScene().getWindow();
+                stage.setScene(ClassManagement.createAddCourseScene(stage));
+            });
+            
             Button newClassBtn = new Button("New Class");
             newClassBtn.getStyleClass().add("new-class-button");
             
@@ -113,7 +120,7 @@ public class Home {
                 stage.setScene(ClassManagement.createNewClassScene(stage));
             });
             
-            actionButtonsRow.getChildren().add(newClassBtn);
+            actionButtonsRow.getChildren().addAll(newCourseBtn, newClassBtn);
         }
 
         enrollStudentBtn.setOnAction(e -> {
