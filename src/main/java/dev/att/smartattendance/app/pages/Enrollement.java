@@ -379,6 +379,7 @@ public class Enrollement {
         
         return scene;
     }
+    
     public static Scene createEnrollmentScene(Stage stage, String username, String email) {
         VBox mainContainer = new VBox(25);
         mainContainer.setStyle("-fx-background-color: #0f172a;");

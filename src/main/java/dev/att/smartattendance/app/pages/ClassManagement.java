@@ -71,8 +71,11 @@ public class ClassManagement {
                 "-fx-border-width: 2; -fx-border-radius: 8; -fx-background-radius: 8;");
         
         CourseDAO courseDAO = new CourseDAO();
+        List<Course> allCourses = courseDAO.get_all_courses();
+        allCourses.sort((c1, c2) -> c1.getCourse_code().compareToIgnoreCase(c2.getCourse_code()));
+
         Map<String, Course> courseMap = new HashMap<>();
-        for (Course course : courseDAO.get_all_courses()) {
+        for (Course course : allCourses) {
             String displayText = course.getCourse_code() + " - " + course.getCourse_name();
             courseComboBox.getItems().add(displayText);
             courseMap.put(displayText, course);
