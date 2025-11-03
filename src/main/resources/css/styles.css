@@ -157,6 +157,24 @@
     -fx-scale-y: 1.08;
     -fx-effect: dropshadow(gaussian, rgba(16, 185, 129, 0.8), 25, 0, 0, 10);
 }
+
+.enroll-prof-button {
+    -fx-background-color: linear-gradient(from 0% 0% to 100% 100%, #8b5cf6 0%, #7c3aed 100%);
+    -fx-text-fill: white;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-padding: 15 35;
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-effect: dropshadow(gaussian,#4b12ae, 15, 0, 0, 5);
+}
+
+.enroll-prof-button:hover {
+    -fx-background-color: linear-gradient(from 0% 0% to 100% 100%, #7c3aed 0%, #661de4 100%);
+    -fx-scale-x: 1.08;
+    -fx-scale-y: 1.08;
+    -fx-effect: dropshadow(gaussian, #3d0d91, 25, 0, 0, 10);
+}
 /*CLASS/ATTENDANCE PAGE STYLING*/
    
 

@@ -278,4 +278,18 @@ public class CustomConfirmDialog {
         
         return show(title, message, details);
     }
+
+    public static boolean showDeleteCourseConfirmation(String courseCode, String courseName) {
+        String title = "Delete Course?";
+        String message = "Are you sure you want to permanently delete: \n" +
+                        courseCode + " ("+courseName+")";
+        
+        String details = """
+                        All classes/groups in this course
+                        All student enrollments in these classes
+                        All attendance records for these classes
+                        All TA assignments for these classe""";
+        
+        return show(title, message, details);
+    }
 }

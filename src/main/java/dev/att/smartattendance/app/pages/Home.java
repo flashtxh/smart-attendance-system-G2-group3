@@ -1,15 +1,22 @@
 package dev.att.smartattendance.app.pages;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
 import dev.att.smartattendance.app.Helper;
+import dev.att.smartattendance.app.pages.customAlert.CustomAlert;
+import dev.att.smartattendance.app.pages.customAlert.CustomConfirmDialog;
 import dev.att.smartattendance.model.course.Course;
 import dev.att.smartattendance.model.course.CourseDAO;
 import dev.att.smartattendance.model.group.Group;
 import dev.att.smartattendance.model.group.GroupDAO;
 import dev.att.smartattendance.model.professor.Professor;
 import dev.att.smartattendance.model.professor.ProfessorDAO;
+import dev.att.smartattendance.util.DatabaseManager;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -102,6 +109,15 @@ public class Home {
         actionButtonsRow.getChildren().add(enrollStudentBtn);
                     
         if (isAdmin) {
+            Button addProfessorBtn = new Button("Add Professor");
+            addProfessorBtn.getStyleClass().add("enroll-prof-button");
+            
+            addProfessorBtn.setOnAction(e -> {
+                Helper.stopCamera();
+                Stage stage = (Stage) addProfessorBtn.getScene().getWindow();
+                stage.setScene(ClassManagement.createAddProfessorScene(stage));
+            });
+            
             Button newCourseBtn = new Button("Add Course");
             newCourseBtn.getStyleClass().add("new-course-button");
 
@@ -120,7 +136,7 @@ public class Home {
                 stage.setScene(ClassManagement.createNewClassScene(stage));
             });
             
-            actionButtonsRow.getChildren().addAll(newCourseBtn, newClassBtn);
+            actionButtonsRow.getChildren().addAll(addProfessorBtn, newCourseBtn, newClassBtn);
         }
 
         enrollStudentBtn.setOnAction(e -> {
@@ -256,7 +272,7 @@ public class Home {
     }
     
     // Course detail scene - shows all groups for a course
-    public static Scene createCourseDetailScene(Course course, String displayName, Stage stage) {
+    public static Scene createCourseDetailScene2(Course course, String displayName, Stage stage) {
         VBox mainContainer = new VBox();
         mainContainer.setStyle("-fx-background-color: #0f172a;");
         
@@ -464,5 +480,248 @@ public class Home {
         
         professorView.getChildren().addAll(classLabel, classButtons);
         return professorView;
+    }
+
+    public static Scene createCourseDetailScene(Course course, String displayName, Stage stage) {
+        VBox mainContainer = new VBox();
+        mainContainer.setStyle("-fx-background-color: #0f172a;");
+        
+        // Header
+        VBox headerSection = new VBox(15);
+        headerSection.getStyleClass().add("home-header");
+        headerSection.setAlignment(Pos.CENTER);
+        
+        Label titleLabel = new Label(course.getCourse_code() + " - " + course.getCourse_name());
+        titleLabel.setStyle("-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #f1f5f9;");
+        
+        Label subtitleLabel = new Label(course.getYear() + " • " + course.getSemester());
+        subtitleLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #94a3b8;");
+        
+        Button backButton = new Button("← Back to Courses");
+        backButton.getStyleClass().add("back-button");
+        
+        backButton.setOnAction(e -> {
+            Helper.stopCamera();
+            stage.setScene(createHomeScene(Helper.loggedInUsername));
+        });
+        
+        // Add quick action buttons
+        Button addClassButton = new Button("➕ Add Class to Course");
+        addClassButton.setStyle("-fx-background-color: #10b981; -fx-text-fill: white; " +
+                "-fx-font-size: 14px; -fx-padding: 10 20; -fx-background-radius: 8; " +
+                "-fx-cursor: hand; -fx-font-weight: bold;");
+        
+        addClassButton.setOnMouseEntered(e -> {
+            addClassButton.setStyle("-fx-background-color: #059669; -fx-text-fill: white; " +
+                    "-fx-font-size: 14px; -fx-padding: 10 20; -fx-background-radius: 8; " +
+                    "-fx-cursor: hand; -fx-font-weight: bold; -fx-scale-x: 1.05; -fx-scale-y: 1.05;");
+        });
+        
+        addClassButton.setOnMouseExited(e -> {
+            addClassButton.setStyle("-fx-background-color: #10b981; -fx-text-fill: white; " +
+                    "-fx-font-size: 14px; -fx-padding: 10 20; -fx-background-radius: 8; " +
+                    "-fx-cursor: hand; -fx-font-weight: bold;");
+        });
+        
+        addClassButton.setOnAction(e -> {
+            Helper.stopCamera();
+            stage.setScene(ClassManagement.createNewClassForCourseScene(stage, course));
+        });
+        
+        Button deleteCourseButton = new Button("🗑 Delete Course");
+        deleteCourseButton.setStyle("-fx-background-color: #ef4444; -fx-text-fill: white; " +
+                "-fx-font-size: 14px; -fx-padding: 10 20; -fx-background-radius: 8; " +
+                "-fx-cursor: hand; -fx-font-weight: bold;");
+        
+        deleteCourseButton.setOnMouseEntered(e -> {
+            deleteCourseButton.setStyle("-fx-background-color: #dc2626; -fx-text-fill: white; " +
+                    "-fx-font-size: 14px; -fx-padding: 10 20; -fx-background-radius: 8; " +
+                    "-fx-cursor: hand; -fx-font-weight: bold; -fx-scale-x: 1.05; -fx-scale-y: 1.05;");
+        });
+        
+        deleteCourseButton.setOnMouseExited(e -> {
+            deleteCourseButton.setStyle("-fx-background-color: #ef4444; -fx-text-fill: white; " +
+                    "-fx-font-size: 14px; -fx-padding: 10 20; -fx-background-radius: 8; " +
+                    "-fx-cursor: hand; -fx-font-weight: bold;");
+        });
+        
+        deleteCourseButton.setOnAction(e -> {
+            boolean confirmed = CustomConfirmDialog.showDeleteCourseConfirmation(
+                course.getCourse_code(), 
+                course.getCourse_name()
+            );
+            
+            if (confirmed) {
+                boolean success = deleteCourse(course.getCourse_id());
+                if (success) {
+                    CustomAlert.showSuccess("Course Deleted", 
+                            "Course " + course.getCourse_code() + " and all its classes have been permanently deleted.");
+                    stage.setScene(createHomeScene(Helper.loggedInUsername));
+                } else {
+                    CustomAlert.showError("Deletion Failed", 
+                            "Failed to delete the course. Please try again.");
+                }
+            }
+        });
+        
+        HBox headerTop = new HBox(15);
+        headerTop.setAlignment(Pos.CENTER_LEFT);
+        headerTop.setStyle("-fx-padding: 20 40;");
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        headerTop.getChildren().addAll(backButton, spacer, addClassButton, deleteCourseButton);
+        
+        headerSection.getChildren().addAll(headerTop, titleLabel, subtitleLabel);
+        
+        // Content - Show all groups for this course
+        VBox contentSection = new VBox(20);
+        contentSection.setStyle("-fx-padding: 40;");
+        contentSection.setAlignment(Pos.CENTER_LEFT);
+        
+        Label groupsTitle = new Label("Classes in this Course");
+        groupsTitle.setStyle("-fx-font-size: 18px; -fx-text-fill: #f1f5f9; -fx-font-weight: bold;");
+        
+        GroupDAO groupDAO = new GroupDAO();
+        List<Group> courseGroups = new ArrayList<>();
+        
+        for (Group group : groupDAO.get_all_groups()) {
+            if (group.getcourse_code().equals(course.getCourse_id())) {
+                courseGroups.add(group);
+            }
+        }
+        
+        FlowPane groupsFlow = new FlowPane(15, 15);
+        groupsFlow.setAlignment(Pos.CENTER_LEFT);
+        
+        if (courseGroups.isEmpty()) {
+            Label noGroupsLabel = new Label("No classes created for this course yet");
+            noGroupsLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #94a3b8; -fx-font-style: italic;");
+            groupsFlow.getChildren().add(noGroupsLabel);
+        } else {
+            for (Group group : courseGroups) {
+                VBox groupBox = createGroupCard(group, displayName);
+                groupsFlow.getChildren().add(groupBox);
+            }
+        }
+        
+        contentSection.getChildren().addAll(groupsTitle, groupsFlow);
+        
+        mainContainer.getChildren().addAll(headerSection, contentSection);
+        
+        ScrollPane scrollPane = new ScrollPane(mainContainer);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle("-fx-background-color: #0f172a;");
+        
+        Scene scene = new Scene(scrollPane, Helper.getScreenWidth(), Helper.getScreenHeight());
+        scene.getStylesheets().add(Home.class.getResource("/css/styles.css").toExternalForm());
+        
+        return scene;
+    }
+
+    // Add method to delete course
+    private static boolean deleteCourse(String courseId) {
+        Connection conn = null;
+        try {
+            conn = DatabaseManager.getConnection();
+            conn.setAutoCommit(false);
+            
+            // Get all groups for this course
+            List<String> groupIds = new ArrayList<>();
+            String getGroupsSql = "SELECT group_id FROM groups WHERE course_code = ?";
+            try (PreparedStatement ps = conn.prepareStatement(getGroupsSql)) {
+                ps.setString(1, courseId);
+                ResultSet rs = ps.executeQuery();
+                while (rs.next()) {
+                    groupIds.add(rs.getString("group_id"));
+                }
+            }
+            
+            // Delete all attendance records for all groups
+            if (!groupIds.isEmpty()) {
+                String deleteAttendanceRecordsSql = "DELETE FROM attendanceRecords WHERE group_id = ?";
+                try (PreparedStatement ps = conn.prepareStatement(deleteAttendanceRecordsSql)) {
+                    for (String groupId : groupIds) {
+                        ps.setString(1, groupId);
+                        ps.addBatch();
+                    }
+                    ps.executeBatch();
+                    System.out.println("Deleted attendance records for " + groupIds.size() + " groups");
+                }
+                
+                // Delete all attendance sessions for all groups
+                String deleteAttendanceSessionsSql = "DELETE FROM attendanceSessions WHERE group_id = ?";
+                try (PreparedStatement ps = conn.prepareStatement(deleteAttendanceSessionsSql)) {
+                    for (String groupId : groupIds) {
+                        ps.setString(1, groupId);
+                        ps.addBatch();
+                    }
+                    ps.executeBatch();
+                    System.out.println("Deleted attendance sessions for " + groupIds.size() + " groups");
+                }
+                
+                // Delete TA assignments
+                String deleteTAAssignmentsSql = "DELETE FROM ta_assignments WHERE group_id = ?";
+                try (PreparedStatement ps = conn.prepareStatement(deleteTAAssignmentsSql)) {
+                    for (String groupId : groupIds) {
+                        ps.setString(1, groupId);
+                        ps.addBatch();
+                    }
+                    ps.executeBatch();
+                    System.out.println("Deleted TA assignments for " + groupIds.size() + " groups");
+                }
+                
+                // Delete student enrollments for all groups
+                String deleteEnrollmentsSql = "DELETE FROM student_group WHERE group_id = ?";
+                try (PreparedStatement ps = conn.prepareStatement(deleteEnrollmentsSql)) {
+                    for (String groupId : groupIds) {
+                        ps.setString(1, groupId);
+                        ps.addBatch();
+                    }
+                    ps.executeBatch();
+                    System.out.println("Deleted student enrollments for " + groupIds.size() + " groups");
+                }
+            }
+            
+            // Delete all groups for this course
+            String deleteGroupsSql = "DELETE FROM groups WHERE course_code = ?";
+            try (PreparedStatement ps = conn.prepareStatement(deleteGroupsSql)) {
+                ps.setString(1, courseId);
+                int groupsDeleted = ps.executeUpdate();
+                System.out.println("Deleted " + groupsDeleted + " groups");
+            }
+            
+            // Finally, delete the course
+            String deleteCourseSql = "DELETE FROM courses WHERE course_id = ?";
+            try (PreparedStatement ps = conn.prepareStatement(deleteCourseSql)) {
+                ps.setString(1, courseId);
+                int courseDeleted = ps.executeUpdate();
+                System.out.println("Deleted course: " + (courseDeleted > 0 ? "Success" : "Failed"));
+            }
+            
+            conn.commit();
+            System.out.println("Course deleted successfully: " + courseId);
+            return true;
+            
+        } catch (SQLException e) {
+            System.err.println("Failed to delete course: " + e.getMessage());
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                    System.err.println("Transaction rolled back");
+                } catch (SQLException ex) {
+                    System.err.println("Rollback failed: " + ex.getMessage());
+                }
+            }
+            return false;
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (SQLException e) {
+                    System.err.println("Failed to close connection: " + e.getMessage());
+                }
+            }
+        }
     }
 }
