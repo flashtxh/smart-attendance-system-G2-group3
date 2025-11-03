@@ -463,7 +463,7 @@ public class ClassManagement {
         mainContainer.setPadding(new Insets(40));
         
         boolean isAdmin = Helper.loggedInUsername.equals("Admin");
-
+        
         if (isAdmin) {
             Button backToCourseButton = new Button("← Back to Course");
             backToCourseButton.getStyleClass().add("back-button");
@@ -497,8 +497,24 @@ public class ClassManagement {
         titleLabel.setStyle("-fx-font-size: 32px; -fx-font-weight: bold; " +
                 "-fx-text-fill: linear-gradient(from 0% 0% to 100% 0%, #60a5fa 0%, #a78bfa 100%);");
         
-        Label courseInfoLabel = new Label("Course: " + currentGroup.getcourse_code() + " | " + 
+        CourseDAO courseDAO = new CourseDAO();
+        Course course = null;
+        
+        for (Course c : courseDAO.get_all_courses()) {
+            if (c.getCourse_id().equals(currentGroup.getcourse_code())) {
+                course = c;
+                break;
+            }
+        }
+
+        Label courseInfoLabel;
+        if (course != null) {
+        courseInfoLabel = new Label("Course: " + course.getCourse_code() + " | " + 
                 currentGroup.getAcademic_year() + " " + currentGroup.getTerm());
+        } else {
+            courseInfoLabel = new Label("Course: " + currentGroup.getcourse_code() + " | " + 
+                currentGroup.getAcademic_year() + " " + currentGroup.getTerm());
+        }
         courseInfoLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #94a3b8;");
                 
         HBox contentBox = new HBox(30);
