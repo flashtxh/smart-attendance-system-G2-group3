@@ -396,7 +396,6 @@ public class Home {
         return groupBox;
     }
     
-    // PROFESSOR/TA VIEW - Simple list of their classes
     private static VBox createProfessorView(String professorId, String displayName, boolean isTA) {
         VBox professorView = new VBox(15);
         professorView.setAlignment(Pos.CENTER_LEFT);

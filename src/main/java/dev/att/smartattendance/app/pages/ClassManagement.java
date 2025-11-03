@@ -461,7 +461,38 @@ public class ClassManagement {
         mainContainer.setStyle("-fx-background-color: #0f172a;");
         mainContainer.setAlignment(Pos.TOP_CENTER);
         mainContainer.setPadding(new Insets(40));
+        
+        boolean isAdmin = Helper.loggedInUsername.equals("Admin");
+
+        if (isAdmin) {
+            Button backToCourseButton = new Button("← Back to Course");
+            backToCourseButton.getStyleClass().add("back-button");
+            backToCourseButton.setStyle("-fx-font-size: 14px; -fx-padding: 10 20;");
+            
+            backToCourseButton.setOnAction(e -> {
+                CourseDAO courseDAO = new CourseDAO();
+                Course course = null;
                 
+                for (Course c : courseDAO.get_all_courses()) {
+                    if (c.getCourse_id().equals(currentGroup.getcourse_code())) {
+                        course = c;
+                        break;
+                    }
+                }
+                
+                if (course != null) {
+                    stage.setScene(Home.createCourseDetailScene(course, Helper.loggedInUsername, stage));
+                } else {
+                    stage.setScene(Home.createHomeScene(Helper.loggedInUsername));
+                }
+            });
+            
+            HBox backToCourseBox = new HBox();
+            backToCourseBox.setAlignment(Pos.CENTER_LEFT);
+            backToCourseBox.getChildren().add(backToCourseButton);
+            mainContainer.getChildren().add(backToCourseBox);
+        }
+      
         Label titleLabel = new Label("Manage Class: " + currentGroup.getGroup_name());
         titleLabel.setStyle("-fx-font-size: 32px; -fx-font-weight: bold; " +
                 "-fx-text-fill: linear-gradient(from 0% 0% to 100% 0%, #60a5fa 0%, #a78bfa 100%);");
