@@ -1,9 +1,7 @@
 package dev.att.smartattendance.app.pages;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import dev.att.smartattendance.app.Helper;
 import dev.att.smartattendance.model.course.Course;
@@ -90,8 +88,8 @@ public class Home {
         boolean isAdmin = username.equals("Admin");
         
         if (isAdmin) {
-            // ADMIN VIEW - Organized by courses
-            contentSection.getChildren().add(createAdminView(displayName));
+            // ADMIN VIEW - Show courses as buttons
+            contentSection.getChildren().add(createAdminCoursesView(displayName));
         } else {
             // PROFESSOR/TA VIEW - Simple list
             contentSection.getChildren().add(createProfessorView(professorId, displayName, isTA));
@@ -161,129 +159,202 @@ public class Home {
         return scene;
     }
     
-    private static VBox createAdminView(String displayName) {
-        VBox adminView = new VBox(30);
+    // ADMIN VIEW - Show all courses as clickable cards
+    private static VBox createAdminCoursesView(String displayName) {
+        VBox adminView = new VBox(20);
         adminView.setAlignment(Pos.CENTER_LEFT);
         
-        Label sectionTitle = new Label("All Classes (Organized by Course)");
+        Label sectionTitle = new Label("Select a Course");
         sectionTitle.setStyle("-fx-font-size: 20px; -fx-text-fill: #f1f5f9; -fx-font-weight: bold;");
         
-        // Get all courses and groups
         CourseDAO courseDAO = new CourseDAO();
-        GroupDAO groupDAO = new GroupDAO();
-        
         List<Course> allCourses = courseDAO.get_all_courses();
-        List<Group> allGroups = groupDAO.get_all_groups();
         
-        // Organize groups by course
-        Map<String, List<Group>> groupsByCourse = new HashMap<>();
-        for (Group group : allGroups) {
-            String courseId = group.getcourse_code();
-            groupsByCourse.computeIfAbsent(courseId, k -> new ArrayList<>()).add(group);
-        }
-        
-        VBox coursesContainer = new VBox(25);
+        FlowPane coursesFlow = new FlowPane(20, 20);
+        coursesFlow.setAlignment(Pos.CENTER_LEFT);
         
         if (allCourses.isEmpty()) {
             Label noCoursesLabel = new Label("No courses available yet");
             noCoursesLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #94a3b8; -fx-font-style: italic;");
-            coursesContainer.getChildren().add(noCoursesLabel);
+            coursesFlow.getChildren().add(noCoursesLabel);
         } else {
             for (Course course : allCourses) {
-                VBox courseCard = createCourseCard(course, groupsByCourse.get(course.getCourse_id()), displayName);
-                coursesContainer.getChildren().add(courseCard);
+                VBox courseCard = createCourseButton(course, displayName);
+                coursesFlow.getChildren().add(courseCard);
             }
         }
         
-        adminView.getChildren().addAll(sectionTitle, coursesContainer);
+        adminView.getChildren().addAll(sectionTitle, coursesFlow);
         return adminView;
     }
     
-    private static VBox createCourseCard(Course course, List<Group> groups, String displayName) {
-        VBox courseCard = new VBox(15);
+    // Create clickable course card
+    private static VBox createCourseButton(Course course, String displayName) {
+        VBox courseCard = new VBox(12);
+        courseCard.setAlignment(Pos.CENTER_LEFT);
         courseCard.setStyle("-fx-background-color: #1e293b; -fx-padding: 25; " +
                 "-fx-background-radius: 15; -fx-border-color: #3b82f6; -fx-border-width: 2; " +
-                "-fx-border-radius: 15; -fx-effect: dropshadow(gaussian, rgba(59, 130, 246, 0.3), 15, 0, 0, 3);");
+                "-fx-border-radius: 15; -fx-min-width: 220; -fx-max-width: 220; " +
+                "-fx-min-height: 130; -fx-cursor: hand;");
         
-        // Course header
-        HBox courseHeader = new HBox(15);
-        courseHeader.setAlignment(Pos.CENTER_LEFT);
+        courseCard.setOnMouseEntered(e -> {
+            courseCard.setStyle("-fx-background-color: #334155; -fx-padding: 25; " +
+                    "-fx-background-radius: 15; -fx-border-color: #60a5fa; -fx-border-width: 2.5; " +
+                    "-fx-border-radius: 15; -fx-min-width: 220; -fx-max-width: 220; " +
+                    "-fx-min-height: 130; -fx-cursor: hand; " +
+                    "-fx-effect: dropshadow(gaussian, rgba(96, 165, 250, 0.5), 20, 0, 0, 5);");
+        });
+        
+        courseCard.setOnMouseExited(e -> {
+            courseCard.setStyle("-fx-background-color: #1e293b; -fx-padding: 25; " +
+                    "-fx-background-radius: 15; -fx-border-color: #3b82f6; -fx-border-width: 2; " +
+                    "-fx-border-radius: 15; -fx-min-width: 220; -fx-max-width: 220; " +
+                    "-fx-min-height: 130; -fx-cursor: hand;");
+        });
+        
+        courseCard.setOnMouseClicked(e -> {
+            Stage stage = (Stage) courseCard.getScene().getWindow();
+            stage.setScene(createCourseDetailScene(course, displayName, stage));
+        });
         
         Label courseCodeLabel = new Label(course.getCourse_code());
-        courseCodeLabel.setStyle("-fx-font-size: 22px; -fx-text-fill: #60a5fa; -fx-font-weight: bold;");
+        courseCodeLabel.setStyle("-fx-font-size: 24px; -fx-text-fill: #60a5fa; -fx-font-weight: bold;");
         
         Label courseNameLabel = new Label(course.getCourse_name());
-        courseNameLabel.setStyle("-fx-font-size: 18px; -fx-text-fill: #f1f5f9; -fx-font-weight: 600;");
+        courseNameLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #f1f5f9; -fx-font-weight: 600;");
+        courseNameLabel.setWrapText(true);
+        courseNameLabel.setMaxWidth(240);
         
         Label courseInfoLabel = new Label(course.getYear() + " • " + course.getSemester());
-        courseInfoLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #94a3b8; -fx-font-style: italic;");
+        courseInfoLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #94a3b8; -fx-font-style: italic;");
+        
+        // Get class count
+        GroupDAO groupDAO = new GroupDAO();
+        int classCount = 0;
+        for (Group g : groupDAO.get_all_groups()) {
+            if (g.getcourse_code().equals(course.getCourse_id())) {
+                classCount++;
+            }
+        }
+        
+        Label classCountLabel = new Label(classCount + " class" + (classCount != 1 ? "es" : ""));
+        classCountLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #10b981; -fx-font-weight: bold;");
         
         Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
+        VBox.setVgrow(spacer, Priority.ALWAYS);
         
-        courseHeader.getChildren().addAll(courseCodeLabel, courseNameLabel, spacer, courseInfoLabel);
-        
-        // Groups section
-        if (groups == null || groups.isEmpty()) {
-            Label noGroupsLabel = new Label("No classes created for this course yet");
-            noGroupsLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #64748b; -fx-font-style: italic; -fx-padding: 10 0 0 20;");
-            courseCard.getChildren().addAll(courseHeader, noGroupsLabel);
-        } else {
-            Label groupsLabel = new Label("Classes (" + groups.size() + "):");
-            groupsLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #94a3b8; -fx-padding: 5 0 0 5;");
-            
-            FlowPane groupsFlow = new FlowPane(12, 12);
-            groupsFlow.setStyle("-fx-padding: 5 0 0 5;");
-            
-            for (Group group : groups) {
-                VBox groupBox = createGroupBox(group, displayName);
-                groupsFlow.getChildren().add(groupBox);
-            }
-            
-            courseCard.getChildren().addAll(courseHeader, groupsLabel, groupsFlow);
-        }
+        courseCard.getChildren().addAll(courseCodeLabel, courseNameLabel, spacer, courseInfoLabel, classCountLabel);
         
         return courseCard;
     }
     
-    private static VBox createGroupBox(Group group, String displayName) {
-        VBox groupBox = new VBox(8);
+    // Course detail scene - shows all groups for a course
+    public static Scene createCourseDetailScene(Course course, String displayName, Stage stage) {
+        VBox mainContainer = new VBox();
+        mainContainer.setStyle("-fx-background-color: #0f172a;");
+        
+        // Header
+        VBox headerSection = new VBox(15);
+        headerSection.getStyleClass().add("home-header");
+        headerSection.setAlignment(Pos.CENTER);
+        
+        Label titleLabel = new Label(course.getCourse_code() + " - " + course.getCourse_name());
+        titleLabel.setStyle("-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #f1f5f9;");
+        
+        Label subtitleLabel = new Label(course.getYear() + " • " + course.getSemester());
+        subtitleLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #94a3b8;");
+        
+        Button backButton = new Button("← Back to Courses");
+        backButton.getStyleClass().add("back-button");
+        
+        backButton.setOnAction(e -> {
+            Helper.stopCamera();
+            stage.setScene(createHomeScene(Helper.loggedInUsername));
+        });
+        
+        HBox headerTop = new HBox();
+        headerTop.setAlignment(Pos.CENTER_LEFT);
+        headerTop.setStyle("-fx-padding: 20 40;");
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        headerTop.getChildren().addAll(backButton, spacer);
+        
+        headerSection.getChildren().addAll(headerTop, titleLabel, subtitleLabel);
+        
+        // Content - Show all groups for this course
+        VBox contentSection = new VBox(20);
+        contentSection.setStyle("-fx-padding: 40;");
+        contentSection.setAlignment(Pos.CENTER_LEFT);
+        
+        Label groupsTitle = new Label("Classes in this Course");
+        groupsTitle.setStyle("-fx-font-size: 18px; -fx-text-fill: #f1f5f9; -fx-font-weight: bold;");
+        
+        GroupDAO groupDAO = new GroupDAO();
+        List<Group> courseGroups = new ArrayList<>();
+        
+        for (Group group : groupDAO.get_all_groups()) {
+            if (group.getcourse_code().equals(course.getCourse_id())) {
+                courseGroups.add(group);
+            }
+        }
+        
+        FlowPane groupsFlow = new FlowPane(15, 15);
+        groupsFlow.setAlignment(Pos.CENTER_LEFT);
+        
+        if (courseGroups.isEmpty()) {
+            Label noGroupsLabel = new Label("No classes created for this course yet");
+            noGroupsLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #94a3b8; -fx-font-style: italic;");
+            groupsFlow.getChildren().add(noGroupsLabel);
+        } else {
+            for (Group group : courseGroups) {
+                VBox groupBox = createGroupCard(group, displayName);
+                groupsFlow.getChildren().add(groupBox);
+            }
+        }
+        
+        contentSection.getChildren().addAll(groupsTitle, groupsFlow);
+        
+        mainContainer.getChildren().addAll(headerSection, contentSection);
+        
+        ScrollPane scrollPane = new ScrollPane(mainContainer);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle("-fx-background-color: #0f172a;");
+        
+        Scene scene = new Scene(scrollPane, Helper.getScreenWidth(), Helper.getScreenHeight());
+        scene.getStylesheets().add(Home.class.getResource("/css/styles.css").toExternalForm());
+        
+        return scene;
+    }
+    
+    // Create group card with buttons
+    private static VBox createGroupCard(Group group, String displayName) {
+        VBox groupBox = new VBox(12);
         groupBox.setAlignment(Pos.CENTER);
-        groupBox.setStyle("-fx-background-color: #0f172a; -fx-padding: 15; " +
-                "-fx-background-radius: 10; -fx-border-color: #475569; -fx-border-width: 1.5; " +
-                "-fx-border-radius: 10; -fx-min-width: 180;");
-        
-        groupBox.setOnMouseEntered(e -> {
-            groupBox.setStyle("-fx-background-color: #1e293b; -fx-padding: 15; " +
-                    "-fx-background-radius: 10; -fx-border-color: #60a5fa; -fx-border-width: 2; " +
-                    "-fx-border-radius: 10; -fx-min-width: 180; -fx-cursor: hand; " +
-                    "-fx-effect: dropshadow(gaussian, rgba(96, 165, 250, 0.4), 10, 0, 0, 2);");
-        });
-        
-        groupBox.setOnMouseExited(e -> {
-            groupBox.setStyle("-fx-background-color: #0f172a; -fx-padding: 15; " +
-                    "-fx-background-radius: 10; -fx-border-color: #475569; -fx-border-width: 1.5; " +
-                    "-fx-border-radius: 10; -fx-min-width: 180;");
-        });
+        groupBox.setStyle("-fx-background-color: #1e293b; -fx-padding: 20; " +
+                "-fx-background-radius: 12; -fx-border-color: #475569; -fx-border-width: 2; " +
+                "-fx-border-radius: 12; -fx-min-width: 220;");
         
         Label groupNameLabel = new Label(group.getGroup_name());
-        groupNameLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #f1f5f9; -fx-font-weight: bold;");
+        groupNameLabel.setStyle("-fx-font-size: 20px; -fx-text-fill: #f1f5f9; -fx-font-weight: bold;");
         
-        Button attendanceBtn = new Button("📋 Attendance");
+        Label termLabel = new Label(group.getAcademic_year() + " • " + group.getTerm());
+        termLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #94a3b8;");
+        
+        Button attendanceBtn = new Button("📋 Take Attendance");
         attendanceBtn.setStyle("-fx-background-color: #3b82f6; -fx-text-fill: white; " +
-                "-fx-font-size: 12px; -fx-padding: 8 16; -fx-background-radius: 6; " +
-                "-fx-cursor: hand; -fx-font-weight: 600; -fx-pref-width: 150;");
+                "-fx-font-size: 13px; -fx-padding: 10 20; -fx-background-radius: 8; " +
+                "-fx-cursor: hand; -fx-font-weight: 600; -fx-pref-width: 180;");
         
         attendanceBtn.setOnMouseEntered(e -> {
             attendanceBtn.setStyle("-fx-background-color: #2563eb; -fx-text-fill: white; " +
-                    "-fx-font-size: 12px; -fx-padding: 8 16; -fx-background-radius: 6; " +
-                    "-fx-cursor: hand; -fx-font-weight: 600; -fx-pref-width: 150;");
+                    "-fx-font-size: 13px; -fx-padding: 10 20; -fx-background-radius: 8; " +
+                    "-fx-cursor: hand; -fx-font-weight: 600; -fx-pref-width: 180;");
         });
         
         attendanceBtn.setOnMouseExited(e -> {
             attendanceBtn.setStyle("-fx-background-color: #3b82f6; -fx-text-fill: white; " +
-                    "-fx-font-size: 12px; -fx-padding: 8 16; -fx-background-radius: 6; " +
-                    "-fx-cursor: hand; -fx-font-weight: 600; -fx-pref-width: 150;");
+                    "-fx-font-size: 13px; -fx-padding: 10 20; -fx-background-radius: 8; " +
+                    "-fx-cursor: hand; -fx-font-weight: 600; -fx-pref-width: 180;");
         });
         
         attendanceBtn.setOnAction(e -> {
@@ -297,21 +368,21 @@ public class Home {
             ));
         });
         
-        Button manageBtn = new Button("⚙ Manage");
+        Button manageBtn = new Button("⚙ Manage Class");
         manageBtn.setStyle("-fx-background-color: #64748b; -fx-text-fill: white; " +
-                "-fx-font-size: 12px; -fx-padding: 8 16; -fx-background-radius: 6; " +
-                "-fx-cursor: hand; -fx-font-weight: 600; -fx-pref-width: 150;");
+                "-fx-font-size: 13px; -fx-padding: 10 20; -fx-background-radius: 8; " +
+                "-fx-cursor: hand; -fx-font-weight: 600; -fx-pref-width: 180;");
         
         manageBtn.setOnMouseEntered(e -> {
             manageBtn.setStyle("-fx-background-color: #475569; -fx-text-fill: white; " +
-                    "-fx-font-size: 12px; -fx-padding: 8 16; -fx-background-radius: 6; " +
-                    "-fx-cursor: hand; -fx-font-weight: 600; -fx-pref-width: 150;");
+                    "-fx-font-size: 13px; -fx-padding: 10 20; -fx-background-radius: 8; " +
+                    "-fx-cursor: hand; -fx-font-weight: 600; -fx-pref-width: 180;");
         });
         
         manageBtn.setOnMouseExited(e -> {
             manageBtn.setStyle("-fx-background-color: #64748b; -fx-text-fill: white; " +
-                    "-fx-font-size: 12px; -fx-padding: 8 16; -fx-background-radius: 6; " +
-                    "-fx-cursor: hand; -fx-font-weight: 600; -fx-pref-width: 150;");
+                    "-fx-font-size: 13px; -fx-padding: 10 20; -fx-background-radius: 8; " +
+                    "-fx-cursor: hand; -fx-font-weight: 600; -fx-pref-width: 180;");
         });
         
         manageBtn.setOnAction(e -> {
@@ -320,11 +391,12 @@ public class Home {
             stage.setScene(ClassManagement.createManageClassScene(stage, group.getGroup_id()));
         });
         
-        groupBox.getChildren().addAll(groupNameLabel, attendanceBtn, manageBtn);
+        groupBox.getChildren().addAll(groupNameLabel, termLabel, attendanceBtn, manageBtn);
         
         return groupBox;
     }
     
+    // PROFESSOR/TA VIEW - Simple list of their classes
     private static VBox createProfessorView(String professorId, String displayName, boolean isTA) {
         VBox professorView = new VBox(15);
         professorView.setAlignment(Pos.CENTER_LEFT);
