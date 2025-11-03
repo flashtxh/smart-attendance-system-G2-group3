@@ -207,7 +207,7 @@ public class Class {
         exportButton.getStyleClass().add("export-button");
 
         saveButton.setOnAction(e -> {
-            saveAttendance(groupId, groupName);            
+            saveAttendance(groupId, groupName);         
             CustomAlert.showSuccess("Success", "Attendance saved successfully for " + groupName + "!");
         });
 
@@ -457,6 +457,8 @@ public class Class {
                     sessionPs.executeUpdate();
                     System.out.println("Created new attendance session for " + groupId + " on " + currentDate);
                 }
+                
+                System.out.println("poop");
             }
                         
             List<Student> students = getStudentsForGroup(groupId);
@@ -484,6 +486,7 @@ public class Class {
                     recordPs.setString(3, student.getStudent_id());
                     recordPs.setString(4, status);
                     
+                    recordPs.addBatch();
                     if (sessionExists) {
                         updatedCount++;
                     } else {
@@ -492,6 +495,8 @@ public class Class {
                     
                     System.out.println(studentName + " (" + student.getEmail() + "): " + status);
                 }
+
+                recordPs.executeBatch();
             }
                         
             conn.commit();
