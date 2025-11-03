@@ -4,7 +4,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.objdetect.CascadeClassifier;
 import org.opencv.videoio.VideoCapture;
@@ -18,28 +17,40 @@ import javafx.stage.Stage;
 public class App extends Application {
 
     private VideoCapture capture;
-    @SuppressWarnings("unused")private volatile boolean cameraActive = false;
-    @SuppressWarnings("unused")private CascadeClassifier faceDetector;
-    @SuppressWarnings("unused")private final Map<String, List<Mat>> personHistograms = new HashMap<>();
-    @SuppressWarnings("unused")private final Map<String, String> userCredentials = new HashMap<>(); // username -> password
-    @SuppressWarnings("unused")private  Mat currentFrame;
-    @SuppressWarnings("unused")private final String baseImagePath = "src/main/resources/images/";
+    @SuppressWarnings("unused")
+    private volatile boolean cameraActive = false;
+    @SuppressWarnings("unused")
+    private CascadeClassifier faceDetector;
+    @SuppressWarnings("unused")
+    private final Map<String, List<Mat>> personHistograms = new HashMap<>();
+    @SuppressWarnings("unused")
+    private final Map<String, String> userCredentials = new HashMap<>(); // username -> password
+    @SuppressWarnings("unused")
+    private Mat currentFrame;
+    @SuppressWarnings("unused")
+    private final String baseImagePath = "src/main/resources/images/";
     private final String cascadePath = "src/main/resources/fxml/haarcascade_frontalface_alt.xml";
 
-    @SuppressWarnings("unused")private final int captureCount = 0;
-    @SuppressWarnings("unused")private final String capturePersonName = "";
-    @SuppressWarnings("unused")private boolean capturingMode = false;
-    @SuppressWarnings("unused")private final String loggedInUsername = "";
-    @SuppressWarnings("unused")private final boolean faceVerified = false;
+    @SuppressWarnings("unused")
+    private final int captureCount = 0;
+    @SuppressWarnings("unused")
+    private final String capturePersonName = "";
+    @SuppressWarnings("unused")
+    private boolean capturingMode = false;
+    @SuppressWarnings("unused")
+    private final String loggedInUsername = "";
+    @SuppressWarnings("unused")
+    private final boolean faceVerified = false;
 
     static {
         try {
-            System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
+            // System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
+            System.load("/usr/local/opencv/share/java/opencv4/libopencv_java480.dylib");
+            // // For MAC
         } catch (UnsatisfiedLinkError e) {
             System.err.println("OpenCV library not found. Camera features will be disabled.");
         }
-        // System.load("/usr/local/opencv/share/java/opencv4/libopencv_java480.dylib");
-        // // For MAC
+
     }
 
     public static void main(String[] args) {
