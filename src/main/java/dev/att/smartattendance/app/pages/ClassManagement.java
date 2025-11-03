@@ -95,7 +95,7 @@ public class ClassManagement {
         final Course[] selectedCourse = {null};
         
         for (Course course : allCourses) {
-            HBox resultRow = createCourseResultRow(course, courseSearchField, selectedCourse, courseLabel, courseResultsScroll);
+            HBox resultRow = createCourseResultRow(course, courseSearchField, selectedCourse, courseLabel);
             courseResultsContainer.getChildren().add(resultRow);
         }
         
@@ -129,7 +129,7 @@ public class ClassManagement {
             if (searchText.isEmpty()) {
                 noResultsLabel.setVisible(false);
                 for (Course course : allCourses) {
-                    HBox resultRow = createCourseResultRow(course, courseSearchField, selectedCourse, courseInfoLabel, courseResultsScroll);
+                    HBox resultRow = createCourseResultRow(course, courseSearchField, selectedCourse, courseInfoLabel);
                     courseResultsContainer.getChildren().add(resultRow);
                 }
                 courseInfoLabel.setVisible(false);
@@ -144,7 +144,7 @@ public class ClassManagement {
                 
                 if (matches) {
                     hasResults = true;
-                    HBox resultRow = createCourseResultRow(course, courseSearchField, selectedCourse, courseInfoLabel, courseResultsScroll);
+                    HBox resultRow = createCourseResultRow(course, courseSearchField, selectedCourse, courseInfoLabel);
                     courseResultsContainer.getChildren().add(resultRow);
                 }
             }
@@ -244,7 +244,7 @@ public class ClassManagement {
     }
     
     private static HBox createCourseResultRow(Course course, TextField searchField, 
-            Course[] selectedCourse, Label infoLabel, ScrollPane resultsScroll) {
+            Course[] selectedCourse, Label infoLabel) {
         HBox resultRow = new HBox(10);
         resultRow.setAlignment(Pos.CENTER_LEFT);
         resultRow.setStyle("-fx-background-color: #1e293b; -fx-padding: 10; " +
