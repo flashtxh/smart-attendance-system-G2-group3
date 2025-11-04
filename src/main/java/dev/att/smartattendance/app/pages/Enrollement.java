@@ -1,10 +1,6 @@
 package dev.att.smartattendance.app.pages;
 
 import java.io.File;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -28,7 +24,7 @@ import dev.att.smartattendance.model.course.Course;
 import dev.att.smartattendance.model.course.CourseDAO;
 import dev.att.smartattendance.model.group.Group;
 import dev.att.smartattendance.model.group.GroupDAO;
-import dev.att.smartattendance.util.DatabaseManager;
+import dev.att.smartattendance.model.student.StudentDAO;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
@@ -49,69 +45,22 @@ import javafx.stage.Stage;
 public class Enrollement {
         
     private static boolean isEmailExists(String email) {
-        String sql = "SELECT COUNT(*) FROM students WHERE email = ?";
-        
-        try (
-            Connection conn = DatabaseManager.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql);
-        ) {
-            ps.setString(1, email);
-            ResultSet rs = ps.executeQuery();
-            
-            if (rs.next()) {
-                return rs.getInt(1) > 0;
-            }
-        } catch (SQLException e) {
-            System.err.println("Error checking email existence: " + e.getMessage());
-        }
-        return false;
+        StudentDAO studentDAO = new StudentDAO();
+        return studentDAO.email_exists(email);
     }
     
     private static String insertStudent(String name, String email) {
         String studentId = UUID.randomUUID().toString();
-        String sql = "INSERT INTO students (student_id, name, email) VALUES (?, ?, ?)";
+        StudentDAO studentDAO = new StudentDAO();
         
-        try (
-            Connection conn = DatabaseManager.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql);
-        ) {
-            ps.setString(1, studentId);
-            ps.setString(2, name);
-            ps.setString(3, email);
-            
-            ps.executeUpdate();
-            System.out.println("Student inserted successfully: " + name + " (" + email + ") with ID: " + studentId);
-            return studentId;
-            
-        } catch (SQLException e) {
-            System.err.println("Failed to insert student: " + e.getMessage());
-            return null;
-        }
+        studentDAO.insert_student(studentId, name, email);
+        System.out.println("Student inserted: " + name + " (" + email + ")");
+        return studentId;
     }
     
     private static boolean assignStudentToGroups(String studentId, List<String> groupIds) {
-        if (groupIds.isEmpty()) {
-            return true; 
-        }
-        
-        String sql = "INSERT INTO student_group (student_id, group_id, enrollment_date) VALUES (?, ?, CURRENT_DATE)";
-        
-        try (
-            Connection conn = DatabaseManager.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql);
-        ) {
-            for (String groupId : groupIds) {
-                ps.setString(1, studentId);
-                ps.setString(2, groupId);
-                ps.addBatch();
-            }
-            ps.executeBatch();
-            System.out.println("Student assigned to " + groupIds.size() + " groups");
-            return true;
-        } catch (SQLException e) {
-            System.err.println("Failed to assign student to groups: " + e.getMessage());
-            return false;
-        }
+        StudentDAO studentDAO = new StudentDAO();
+        return studentDAO.assign_student_to_groups(studentId, groupIds);
     }
         
     public static Scene createEnrollmentInfoScene(Stage stage) {

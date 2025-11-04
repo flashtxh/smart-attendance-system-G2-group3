@@ -1,12 +1,7 @@
 package dev.att.smartattendance.app.pages;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -23,7 +18,6 @@ import dev.att.smartattendance.model.professor.Professor;
 import dev.att.smartattendance.model.professor.ProfessorDAO;
 import dev.att.smartattendance.model.student.Student;
 import dev.att.smartattendance.model.student.StudentDAO;
-import dev.att.smartattendance.util.DatabaseManager;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -483,63 +477,23 @@ public class ClassManagement {
     }
         
     private static boolean createClassWithStudents(Course course, String groupName, 
-            String professorId, List<String> studentIds) {
-        
+        String professorId, List<String> studentIds) {
+    
         String groupId = UUID.randomUUID().toString();
         
-        Connection conn = null;
-        try {
-            conn = DatabaseManager.getConnection();
-            conn.setAutoCommit(false);
-                        
-            String groupSql = "INSERT INTO groups (group_id, group_name, course_code, professor_id, academic_year, term) " +
-                            "VALUES (?, ?, ?, ?, ?, ?)";
-            try (PreparedStatement ps = conn.prepareStatement(groupSql)) {
-                ps.setString(1, groupId);
-                ps.setString(2, groupName);
-                ps.setString(3, course.getCourse_id());
-                ps.setString(4, professorId);
-                ps.setString(5, course.getYear());      // Changed from setInt to setString
-                ps.setString(6, "Term "+String.valueOf(course.getSemester()));
-                ps.executeUpdate();
-            }
-                        
-            String studentGroupSql = "INSERT INTO student_group (student_id, group_id, enrollment_date) VALUES (?, ?, CURRENT_DATE)";
-            try (PreparedStatement ps = conn.prepareStatement(studentGroupSql)) {
-                for (String studentId : studentIds) {
-                    ps.setString(1, studentId);
-                    ps.setString(2, groupId);
-                    ps.addBatch();
-                }
-                ps.executeBatch();
-            }
-            
-            conn.commit();
-            System.out.println("Class created successfully: " + groupName + " with " + studentIds.size() + " students");
-            return true;
-            
-        } catch (SQLException e) {
-            System.err.println("Failed to create class: " + e.getMessage());
-            if (conn != null) {
-                try {
-                    conn.rollback();
-                } catch (SQLException ex) {
-                    System.err.println("Rollback failed: " + ex.getMessage());
-                }
-            }
-            return false;
-        } finally {
-            if (conn != null) {
-                try {
-                    conn.setAutoCommit(true);
-                    conn.close();
-                } catch (SQLException e) {
-                    System.err.println("Failed to close connection: " + e.getMessage());
-                }
-            }
-        }
+        // Now uses GroupDAO method instead of inline SQL
+        GroupDAO groupDAO = new GroupDAO();
+        return groupDAO.create_class_with_students(
+            groupId, 
+            groupName, 
+            course.getCourse_id(), 
+            professorId, 
+            course.getYear(), 
+            "Term " + String.valueOf(course.getSemester()),
+            studentIds
+        );
     }
-        
+    
     public static Scene createManageClassScene(Stage stage, String groupId) {
         GroupDAO groupDAO = new GroupDAO();
         Group group = null;
@@ -834,126 +788,23 @@ public class ClassManagement {
     }
     
     private static Set<String> getEnrolledStudentIds(String groupId) {
-        Set<String> enrolledIds = new HashSet<>();
-        String sql = "SELECT student_id FROM student_group WHERE group_id = ?";
-        
-        try (
-            Connection conn = DatabaseManager.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql);
-        ) {
-            ps.setString(1, groupId);
-            ResultSet rs = ps.executeQuery();
-            
-            while (rs.next()) {
-                enrolledIds.add(rs.getString("student_id"));
-            }
-        } catch (SQLException e) {
-            System.err.println("Failed to get enrolled students: " + e.getMessage());
-        }
-        
-        return enrolledIds;
+        GroupDAO groupDAO = new GroupDAO();
+        return groupDAO.get_enrolled_student_ids(groupId);
     }
     
     private static boolean addStudentToGroup(String studentId, String groupId) {
-        String sql = "INSERT INTO student_group (student_id, group_id, enrollment_date) VALUES (?, ?, CURRENT_DATE)";
-        
-        try (
-            Connection conn = DatabaseManager.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql);
-        ) {
-            ps.setString(1, studentId);
-            ps.setString(2, groupId);
-            ps.executeUpdate();
-            
-            System.out.println("Student " + studentId + " added to group " + groupId + " with enrollment date");
-            return true;
-        } catch (SQLException e) {
-            System.err.println("Failed to add student to group: " + e.getMessage());
-            return false;
-        }
+        GroupDAO groupDAO = new GroupDAO();
+        return groupDAO.add_student_to_group(studentId, groupId);
     }
     
     private static boolean removeStudentFromGroup(String studentId, String groupId) {
-        String sql = "DELETE FROM student_group WHERE student_id = ? AND group_id = ?";
-        
-        try (
-            Connection conn = DatabaseManager.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql);
-        ) {
-            ps.setString(1, studentId);
-            ps.setString(2, groupId);
-            int rowsAffected = ps.executeUpdate();
-            
-            if (rowsAffected > 0) {
-                System.out.println("Student " + studentId + " removed from group " + groupId);
-                return true;
-            }
-            return false;
-        } catch (SQLException e) {
-            System.err.println("Failed to remove student from group: " + e.getMessage());
-            return false;
-        }
+        GroupDAO groupDAO = new GroupDAO();
+        return groupDAO.remove_student_from_group(studentId, groupId);
     }
         
     private static boolean deleteClass(String groupId) {
-        Connection conn = null;
-        try {
-            conn = DatabaseManager.getConnection();
-            conn.setAutoCommit(false);
-                        
-            String deleteAttendanceSql = "DELETE FROM attendanceRecords WHERE group_id = ?";
-            try (PreparedStatement ps = conn.prepareStatement(deleteAttendanceSql)) {
-                ps.setString(1, groupId);
-                int attendanceDeleted = ps.executeUpdate();
-                System.out.println("Deleted " + attendanceDeleted + " attendance records");
-            }
-                        
-            String deleteSessionsSql = "DELETE FROM attendanceSessions WHERE group_id = ?";
-            try (PreparedStatement ps = conn.prepareStatement(deleteSessionsSql)) {
-                ps.setString(1, groupId);
-                int sessionsDeleted = ps.executeUpdate();
-                System.out.println("Deleted " + sessionsDeleted + " attendance sessions");
-            }
-                        
-            String deleteEnrollmentsSql = "DELETE FROM student_group WHERE group_id = ?";
-            try (PreparedStatement ps = conn.prepareStatement(deleteEnrollmentsSql)) {
-                ps.setString(1, groupId);
-                int enrollmentsDeleted = ps.executeUpdate();
-                System.out.println("Deleted " + enrollmentsDeleted + " student enrollments");
-            }
-                        
-            String deleteGroupSql = "DELETE FROM groups WHERE group_id = ?";
-            try (PreparedStatement ps = conn.prepareStatement(deleteGroupSql)) {
-                ps.setString(1, groupId);
-                int groupDeleted = ps.executeUpdate();
-                System.out.println("Deleted group: " + (groupDeleted > 0 ? "Success" : "Failed"));
-            }
-            
-            conn.commit();
-            System.out.println("Class deleted successfully: " + groupId);
-            return true;
-            
-        } catch (SQLException e) {
-            System.err.println("Failed to delete class: " + e.getMessage());
-            if (conn != null) {
-                try {
-                    conn.rollback();
-                    System.err.println("Transaction rolled back");
-                } catch (SQLException ex) {
-                    System.err.println("Rollback failed: " + ex.getMessage());
-                }
-            }
-            return false;
-        } finally {
-            if (conn != null) {
-                try {
-                    conn.setAutoCommit(true);
-                    conn.close();
-                } catch (SQLException e) {
-                    System.err.println("Failed to close connection: " + e.getMessage());
-                }
-            }
-        }
+        GroupDAO groupDAO = new GroupDAO();
+        return groupDAO.delete_class(groupId);
     }
 
     public static Scene createAddCourseScene(Stage stage) {
@@ -1338,44 +1189,16 @@ public class ClassManagement {
     }
 
     private static boolean isProfessorEmailExists(String email) {
-        String sql = "SELECT COUNT(*) FROM professors WHERE email = ?";
-        
-        try (
-            Connection conn = DatabaseManager.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql);
-        ) {
-            ps.setString(1, email);
-            ResultSet rs = ps.executeQuery();
-            
-            if (rs.next()) {
-                return rs.getInt(1) > 0;
-            }
-        } catch (SQLException e) {
-            System.err.println("Error checking email existence: " + e.getMessage());
-        }
-        return false;
+        ProfessorDAO professorDAO = new ProfessorDAO();
+        return professorDAO.email_exists(email);
     }
 
     private static String createNewProfessor(String name, String email, String password) {
         String professorId = UUID.randomUUID().toString();
-        String sql = "INSERT INTO professors (professor_id, username, email, password, is_ta) VALUES (?, ?, ?, ?, 0)";
+        ProfessorDAO professorDAO = new ProfessorDAO();
         
-        try (
-            Connection conn = DatabaseManager.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql);
-        ) {
-            ps.setString(1, professorId);
-            ps.setString(2, name);
-            ps.setString(3, email);
-            ps.setString(4, password);
-            
-            ps.executeUpdate();
-            System.out.println("Professor created successfully: " + name + " (" + email + ") with ID: " + professorId);
-            return professorId;
-            
-        } catch (SQLException e) {
-            System.err.println("Failed to create professor: " + e.getMessage());
-            return null;
-        }
+        professorDAO.insert_professor(professorId, name, email, password);
+        System.out.println("Professor created: " + name + " (" + email + ")");
+        return professorId;
     }
 }

@@ -4,10 +4,6 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.FloatBuffer;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -39,7 +35,6 @@ import dev.att.smartattendance.model.group.Group;
 import dev.att.smartattendance.model.group.GroupDAO;
 import dev.att.smartattendance.model.student.Student;
 import dev.att.smartattendance.model.student.StudentDAO;
-import dev.att.smartattendance.util.DatabaseManager;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.geometry.Pos;
@@ -426,172 +421,82 @@ public class Class {
     private static void saveAttendance(String groupId, String groupName) {
         System.out.println("Saving attendance for group: " + groupName + " (ID: " + groupId + ")");
         
-        String currentDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        // Prepare attendance map
+        List<Student> students = getStudentsForGroup(groupId);
+        Map<String, Boolean> attendanceMap = new HashMap<>();
         
-        Connection conn = null;
-        try {
-            conn = DatabaseManager.getConnection();
-            conn.setAutoCommit(false); 
-                        
-            String checkSessionSql = "SELECT COUNT(*) FROM attendanceSessions WHERE group_id = ? AND date = ?";
-            boolean sessionExists = false;
+        for (Student student : students) {
+            String studentName = student.getName();
             
-            try (PreparedStatement checkPs = conn.prepareStatement(checkSessionSql)) {
-                checkPs.setString(1, groupId);
-                checkPs.setString(2, currentDate);
-                ResultSet rs = checkPs.executeQuery();
-                if (rs.next() && rs.getInt(1) > 0) {
-                    sessionExists = true;
-                }
+            if (studentName.equalsIgnoreCase("Admin")) {
+                continue;
             }
-                        
-            if (sessionExists) {                
-                System.out.println("Updating existing session for " + groupId + " on " + currentDate);
-            } else {                
-                String sessionSql = "INSERT INTO attendanceSessions (group_id, date, start_time, end_time, session_type) " +
-                                "VALUES (?, ?, NULL, NULL, NULL)";
-                
-                try (PreparedStatement sessionPs = conn.prepareStatement(sessionSql)) {
-                    sessionPs.setString(1, groupId);
-                    sessionPs.setString(2, currentDate);
-                    sessionPs.executeUpdate();
-                    System.out.println("Created new attendance session for " + groupId + " on " + currentDate);
-                }
-                
-                System.out.println("poop");
-            }
-                        
-            List<Student> students = getStudentsForGroup(groupId);
-            int savedCount = 0;
-            int updatedCount = 0;
-                        
-            String upsertRecordSql = "INSERT INTO attendanceRecords (group_id, date, student_id, status) " +
-                                    "VALUES (?, ?, ?, ?) " +
-                                    "ON CONFLICT(group_id, date, student_id) " +
-                                    "DO UPDATE SET status = excluded.status";
             
-            try (PreparedStatement recordPs = conn.prepareStatement(upsertRecordSql)) {
-                for (Student student : students) {
-                    String studentName = student.getName();
-                                        
-                    if (studentName.equalsIgnoreCase("Admin")) {
-                        continue;
-                    }
-                                        
-                    CheckBox checkBox = studentCheckboxes.get(studentName);
-                    String status = (checkBox != null && checkBox.isSelected()) ? "Present" : "Absent";
-                                        
-                    recordPs.setString(1, groupId);
-                    recordPs.setString(2, currentDate);
-                    recordPs.setString(3, student.getStudent_id());
-                    recordPs.setString(4, status);
-                    
-                    recordPs.addBatch();
-                    if (sessionExists) {
-                        updatedCount++;
-                    } else {
-                        savedCount++;
-                    }
-                    
-                    System.out.println(studentName + " (" + student.getEmail() + "): " + status);
-                }
-
-                recordPs.executeBatch();
-            }
-                        
-            conn.commit();
+            CheckBox checkBox = studentCheckboxes.get(studentName);
+            boolean isPresent = (checkBox != null && checkBox.isSelected());
+            attendanceMap.put(student.getStudent_id(), isPresent);
             
-            String message = sessionExists 
-                ? "Successfully updated attendance for " + updatedCount + " students"
-                : "Successfully saved attendance for " + savedCount + " students";
-            System.out.println(message);
-            
-        } catch (SQLException e) {
-            System.err.println("Failed to save attendance: " + e.getMessage());
-                        
-            if (conn != null) {
-                try {
-                    conn.rollback();
-                    System.err.println("Transaction rolled back");
-                } catch (SQLException ex) {
-                    System.err.println("Failed to rollback: " + ex.getMessage());
-                }
-            }
-                        
+            System.out.println(studentName + " (" + student.getEmail() + "): " + 
+                            (isPresent ? "Present" : "Absent"));
+        }
+        
+        // Save using DAO
+        StudentDAO studentDAO = new StudentDAO();
+        boolean success = studentDAO.save_attendance(groupId, attendanceMap);
+        
+        if (!success) {
             Platform.runLater(() -> 
-                Helper.showAlert("Save Error", "Failed to save attendance to database:\n" + e.getMessage())
+                Helper.showAlert("Save Error", "Failed to save attendance to database")
             );
-            
-        } finally {
-            if (conn != null) {
-                try {
-                conn.setAutoCommit(true); 
-                    conn.close();
-                } catch (SQLException e) {
-                    System.err.println("Failed to close connection: " + e.getMessage());
-                }
-            }
         }
     }
 
     private static void loadExistingAttendance(String groupId, List<Student> students) {
-        String currentDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-                
+        // Create student ID to name map
         Map<String, String> studentIdToName = new HashMap<>();
         for (Student student : students) {
             studentIdToName.put(student.getStudent_id(), student.getName());
         }
         
-        String sql = "SELECT student_id, status FROM attendanceRecords " +
-                    "WHERE group_id = ? AND date = ?";
+        // Load attendance using DAO
+        StudentDAO studentDAO = new StudentDAO();
+        Map<String, String> attendanceMap = studentDAO.load_existing_attendance(groupId);
         
-        try (
-            Connection conn = DatabaseManager.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql);
-        ) {
-            ps.setString(1, groupId);
-            ps.setString(2, currentDate);
+        int loadedCount = 0;
+        
+        for (Map.Entry<String, String> entry : attendanceMap.entrySet()) {
+            String studentId = entry.getKey();
+            String status = entry.getValue();
             
-            ResultSet rs = ps.executeQuery();
-            int loadedCount = 0;
+            String studentName = studentIdToName.get(studentId);
             
-            while (rs.next()) {
-                String studentId = rs.getString("student_id");
-                String status = rs.getString("status");
-                                
-                String studentName = studentIdToName.get(studentId);
+            if (studentName != null && !studentName.equalsIgnoreCase("Admin")) {
+                CheckBox checkBox = studentCheckboxes.get(studentName);
+                Label statusLabel = studentStatusLabels.get(studentName);
                 
-                if (studentName != null && !studentName.equalsIgnoreCase("Admin")) {
-                    CheckBox checkBox = studentCheckboxes.get(studentName);
-                    Label statusLabel = studentStatusLabels.get(studentName);
+                if (checkBox != null && statusLabel != null) {
+                    final boolean isPresent = status.equals("Present");
                     
-                    if (checkBox != null && statusLabel != null) {
-                        final boolean isPresent = status.equals("Present");
-                        
-                        Platform.runLater(() -> {
-                            checkBox.setSelected(isPresent);
-                            if (isPresent) {
-                                statusLabel.setText("Present (Previously saved)");
-                                statusLabel.setStyle("-fx-text-fill: #3498db; -fx-font-size: 12px; -fx-font-weight: bold;");
-                            } else {
-                                statusLabel.setText("Absent");
-                                statusLabel.setStyle("-fx-text-fill: #e74c3c; -fx-font-size: 12px;");
-                            }
-                        });
-                        loadedCount++;
-                    }
+                    Platform.runLater(() -> {
+                        checkBox.setSelected(isPresent);
+                        if (isPresent) {
+                            statusLabel.setText("Present (Previously saved)");
+                            statusLabel.setStyle("-fx-text-fill: #3498db; -fx-font-size: 12px; -fx-font-weight: bold;");
+                        } else {
+                            statusLabel.setText("Absent");
+                            statusLabel.setStyle("-fx-text-fill: #e74c3c; -fx-font-size: 12px;");
+                        }
+                    });
+                    loadedCount++;
                 }
             }
-            
-            if (loadedCount > 0) {
-                System.out.println("Loaded existing attendance for " + loadedCount + " students on " + currentDate);
-            }
-            
-        } catch (SQLException e) {
-            System.err.println("Failed to load existing attendance: " + e.getMessage());
+        }
+        
+        if (loadedCount > 0) {
+            System.out.println("Loaded existing attendance for " + loadedCount + " students");
         }
     }
-
+    
     private static void exportAttendanceToCSV(String groupId, String groupName, Stage stage) {        
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Save Attendance Report");

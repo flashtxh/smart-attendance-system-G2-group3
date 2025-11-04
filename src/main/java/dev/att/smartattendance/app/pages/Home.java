@@ -1,9 +1,5 @@
 package dev.att.smartattendance.app.pages;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,7 +12,6 @@ import dev.att.smartattendance.model.group.Group;
 import dev.att.smartattendance.model.group.GroupDAO;
 import dev.att.smartattendance.model.professor.Professor;
 import dev.att.smartattendance.model.professor.ProfessorDAO;
-import dev.att.smartattendance.util.DatabaseManager;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -620,108 +615,7 @@ public class Home {
 
     // Add method to delete course
     private static boolean deleteCourse(String courseId) {
-        Connection conn = null;
-        try {
-            conn = DatabaseManager.getConnection();
-            conn.setAutoCommit(false);
-            
-            // Get all groups for this course
-            List<String> groupIds = new ArrayList<>();
-            String getGroupsSql = "SELECT group_id FROM groups WHERE course_code = ?";
-            try (PreparedStatement ps = conn.prepareStatement(getGroupsSql)) {
-                ps.setString(1, courseId);
-                ResultSet rs = ps.executeQuery();
-                while (rs.next()) {
-                    groupIds.add(rs.getString("group_id"));
-                }
-            }
-            
-            // Delete all attendance records for all groups
-            if (!groupIds.isEmpty()) {
-                String deleteAttendanceRecordsSql = "DELETE FROM attendanceRecords WHERE group_id = ?";
-                try (PreparedStatement ps = conn.prepareStatement(deleteAttendanceRecordsSql)) {
-                    for (String groupId : groupIds) {
-                        ps.setString(1, groupId);
-                        ps.addBatch();
-                    }
-                    ps.executeBatch();
-                    System.out.println("Deleted attendance records for " + groupIds.size() + " groups");
-                }
-                
-                // Delete all attendance sessions for all groups
-                String deleteAttendanceSessionsSql = "DELETE FROM attendanceSessions WHERE group_id = ?";
-                try (PreparedStatement ps = conn.prepareStatement(deleteAttendanceSessionsSql)) {
-                    for (String groupId : groupIds) {
-                        ps.setString(1, groupId);
-                        ps.addBatch();
-                    }
-                    ps.executeBatch();
-                    System.out.println("Deleted attendance sessions for " + groupIds.size() + " groups");
-                }
-                
-                // Delete TA assignments
-                String deleteTAAssignmentsSql = "DELETE FROM ta_assignments WHERE group_id = ?";
-                try (PreparedStatement ps = conn.prepareStatement(deleteTAAssignmentsSql)) {
-                    for (String groupId : groupIds) {
-                        ps.setString(1, groupId);
-                        ps.addBatch();
-                    }
-                    ps.executeBatch();
-                    System.out.println("Deleted TA assignments for " + groupIds.size() + " groups");
-                }
-                
-                // Delete student enrollments for all groups
-                String deleteEnrollmentsSql = "DELETE FROM student_group WHERE group_id = ?";
-                try (PreparedStatement ps = conn.prepareStatement(deleteEnrollmentsSql)) {
-                    for (String groupId : groupIds) {
-                        ps.setString(1, groupId);
-                        ps.addBatch();
-                    }
-                    ps.executeBatch();
-                    System.out.println("Deleted student enrollments for " + groupIds.size() + " groups");
-                }
-            }
-            
-            // Delete all groups for this course
-            String deleteGroupsSql = "DELETE FROM groups WHERE course_code = ?";
-            try (PreparedStatement ps = conn.prepareStatement(deleteGroupsSql)) {
-                ps.setString(1, courseId);
-                int groupsDeleted = ps.executeUpdate();
-                System.out.println("Deleted " + groupsDeleted + " groups");
-            }
-            
-            // Finally, delete the course
-            String deleteCourseSql = "DELETE FROM courses WHERE course_id = ?";
-            try (PreparedStatement ps = conn.prepareStatement(deleteCourseSql)) {
-                ps.setString(1, courseId);
-                int courseDeleted = ps.executeUpdate();
-                System.out.println("Deleted course: " + (courseDeleted > 0 ? "Success" : "Failed"));
-            }
-            
-            conn.commit();
-            System.out.println("Course deleted successfully: " + courseId);
-            return true;
-            
-        } catch (SQLException e) {
-            System.err.println("Failed to delete course: " + e.getMessage());
-            if (conn != null) {
-                try {
-                    conn.rollback();
-                    System.err.println("Transaction rolled back");
-                } catch (SQLException ex) {
-                    System.err.println("Rollback failed: " + ex.getMessage());
-                }
-            }
-            return false;
-        } finally {
-            if (conn != null) {
-                try {
-                    conn.setAutoCommit(true);
-                    conn.close();
-                } catch (SQLException e) {
-                    System.err.println("Failed to close connection: " + e.getMessage());
-                }
-            }
-        }
+        CourseDAO courseDAO = new CourseDAO();
+        return courseDAO.delete_course(courseId);
     }
 }

@@ -1,20 +1,15 @@
 package dev.att.smartattendance.app.pages;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
 import dev.att.smartattendance.app.Helper;
 import dev.att.smartattendance.app.pages.customAlert.CustomAlert;
+import dev.att.smartattendance.model.group.GroupDAO;
 import dev.att.smartattendance.model.professor.Professor;
 import dev.att.smartattendance.model.professor.ProfessorDAO;
-import dev.att.smartattendance.util.DatabaseManager;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -346,125 +341,35 @@ public class TAManagement {
     }
     
     private static Set<String> getAssignedTAIds(String groupId) {
-        Set<String> assignedIds = new HashSet<>();
-        String sql = "SELECT ta_id FROM ta_assignments WHERE group_id = ?";
-        
-        try (
-            Connection conn = DatabaseManager.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql);
-        ) {
-            ps.setString(1, groupId);
-            ResultSet rs = ps.executeQuery();
-            
-            while (rs.next()) {
-                assignedIds.add(rs.getString("ta_id"));
-            }
-        } catch (SQLException e) {
-            System.err.println("Failed to get assigned TAs: " + e.getMessage());
-        }
-        
-        return assignedIds;
+        ProfessorDAO professorDAO = new ProfessorDAO();
+        return professorDAO.get_assigned_ta_ids(groupId);
     }
-    
+
     private static boolean assignTAToGroup(String taId, String groupId) {
-        String sql = "INSERT INTO ta_assignments (ta_id, group_id) VALUES (?, ?)";
-        
-        try (
-            Connection conn = DatabaseManager.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql);
-        ) {
-            ps.setString(1, taId);
-            ps.setString(2, groupId);
-            ps.executeUpdate();
-            
-            System.out.println("TA " + taId + " assigned to group " + groupId);
-            return true;
-        } catch (SQLException e) {
-            System.err.println("Failed to assign TA to group: " + e.getMessage());
-            return false;
-        }
+        ProfessorDAO professorDAO = new ProfessorDAO();
+        return professorDAO.assign_ta_to_group(taId, groupId);
     }
-    
+
     private static boolean removeTAFromGroup(String taId, String groupId) {
-        String sql = "DELETE FROM ta_assignments WHERE ta_id = ? AND group_id = ?";
-        
-        try (
-            Connection conn = DatabaseManager.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql);
-        ) {
-            ps.setString(1, taId);
-            ps.setString(2, groupId);
-            int rowsAffected = ps.executeUpdate();
-            
-            if (rowsAffected > 0) {
-                System.out.println("TA " + taId + " removed from group " + groupId);
-                return true;
-            }
-            return false;
-        } catch (SQLException e) {
-            System.err.println("Failed to remove TA from group: " + e.getMessage());
-            return false;
-        }
+        ProfessorDAO professorDAO = new ProfessorDAO();
+        return professorDAO.remove_ta_from_group(taId, groupId);
     }
-    
+
     private static boolean isTAEmailExists(String email) {
-        String sql = "SELECT COUNT(*) FROM professors WHERE email = ?";
-        
-        try (
-            Connection conn = DatabaseManager.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql);
-        ) {
-            ps.setString(1, email);
-            ResultSet rs = ps.executeQuery();
-            
-            if (rs.next()) {
-                return rs.getInt(1) > 0;
-            }
-        } catch (SQLException e) {
-            System.err.println("Error checking email existence: " + e.getMessage());
-        }
-        return false;
+        ProfessorDAO professorDAO = new ProfessorDAO();
+        return professorDAO.email_exists(email);
     }
-    
+
     private static String createNewTA(String name, String email, String password) {
         String taId = UUID.randomUUID().toString();
-        String sql = "INSERT INTO professors (professor_id, username, email, password, is_ta) VALUES (?, ?, ?, ?, 1)";
+        ProfessorDAO professorDAO = new ProfessorDAO();
         
-        try (
-            Connection conn = DatabaseManager.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql);
-        ) {
-            ps.setString(1, taId);
-            ps.setString(2, name);
-            ps.setString(3, email);
-            ps.setString(4, password);
-            
-            ps.executeUpdate();
-            System.out.println("TA created successfully: " + name + " (" + email + ") with ID: " + taId);
-            return taId;
-            
-        } catch (SQLException e) {
-            System.err.println("Failed to create TA: " + e.getMessage());
-            return null;
-        }
+        boolean success = professorDAO.insert_ta(taId, name, email, password);
+        return success ? taId : null;
     }
-    
+
     private static String getGroupName(String groupId) {
-        String sql = "SELECT group_name FROM groups WHERE group_id = ?";
-        
-        try (
-            Connection conn = DatabaseManager.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql);
-        ) {
-            ps.setString(1, groupId);
-            ResultSet rs = ps.executeQuery();
-            
-            if (rs.next()) {
-                return rs.getString("group_name");
-            }
-        } catch (SQLException e) {
-            System.err.println("Error getting group name: " + e.getMessage());
-        }
-        return "Unknown Group";
+        GroupDAO groupDAO = new GroupDAO();
+        return groupDAO.get_group_name(groupId);
     }
 }
