@@ -153,6 +153,7 @@ public class Login {
 
         // Login button
         Button loginButton = new Button("Sign In");
+        loginButton.setDefaultButton(true);
         loginButton.getStyleClass().add("login-button");
         loginButton.setStyle("-fx-background-color: linear-gradient(to bottom right, #667eea 0%, #764ba2 100%); " +
                             "-fx-text-fill: white; " +

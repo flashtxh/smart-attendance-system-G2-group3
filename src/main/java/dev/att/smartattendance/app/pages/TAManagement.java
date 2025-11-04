@@ -271,6 +271,7 @@ public class TAManagement {
         buttonBox.setAlignment(Pos.CENTER);
 
         Button createBtn = new Button("Create TA");
+        createBtn.setDefaultButton(true);
         createBtn.getStyleClass().add("enroll-student-button");
         createBtn.setPrefWidth(200);
 

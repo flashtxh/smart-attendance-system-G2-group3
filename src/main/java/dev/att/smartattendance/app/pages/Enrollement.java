@@ -238,6 +238,7 @@ public class Enrollement {
         buttonBox.setAlignment(Pos.CENTER);
 
         Button nextBtn = new Button("Next: Capture Face");
+        nextBtn.setDefaultButton(true);
         nextBtn.getStyleClass().add("enroll-student-button");
         nextBtn.setPrefWidth(200);
 

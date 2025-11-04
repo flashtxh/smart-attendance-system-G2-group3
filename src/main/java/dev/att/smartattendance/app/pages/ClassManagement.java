@@ -197,6 +197,7 @@ public class ClassManagement {
         buttonBox.setAlignment(Pos.CENTER);
         
         Button nextButton = new Button("Next: Assign Students");
+        nextButton.setDefaultButton(true);
         nextButton.getStyleClass().add("enroll-student-button");
         nextButton.setPrefWidth(220);
         
@@ -424,6 +425,7 @@ public class ClassManagement {
         buttonBox.setAlignment(Pos.CENTER);
         
         Button createButton = new Button("Create Class");
+        createButton.setDefaultButton(true);
         createButton.getStyleClass().add("enroll-student-button");
         createButton.setPrefWidth(180);
         
@@ -887,6 +889,7 @@ public class ClassManagement {
         buttonBox.setAlignment(Pos.CENTER);
 
         Button createBtn = new Button("Create Course");
+        createBtn.setDefaultButton(true);
         createBtn.getStyleClass().add("enroll-student-button");
         createBtn.setPrefWidth(200);
 
@@ -1124,6 +1127,7 @@ public class ClassManagement {
         buttonBox.setAlignment(Pos.CENTER);
 
         Button createBtn = new Button("Create Professor");
+        createBtn.setDefaultButton(true);
         createBtn.getStyleClass().add("enroll-student-button");
         createBtn.setPrefWidth(200);
 
