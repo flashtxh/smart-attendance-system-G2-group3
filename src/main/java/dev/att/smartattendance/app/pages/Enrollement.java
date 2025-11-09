@@ -18,6 +18,7 @@ import org.opencv.imgproc.Imgproc;
 import org.opencv.videoio.VideoCapture;
 
 import dev.att.smartattendance.app.Helper;
+import dev.att.smartattendance.app.ImprovedRecognitionHelper;
 import dev.att.smartattendance.app.Loader;
 import dev.att.smartattendance.app.pages.customAlert.CustomAlert;
 import dev.att.smartattendance.model.course.Course;
@@ -411,8 +412,78 @@ public class Enrollement {
         startCameraForEnrollment(webcamView, statusLabel, enrollBtn, backBtn, stage);
     }
 
+    public static void saveFaceForEnrollment(Mat gray, Rect rect, Label statusLabel,
+        Button enrollBtn, Button backBtn, Stage stage) {
+        
+        if (!ImprovedRecognitionHelper.isValidFaceForEnrollment(null, gray, rect)) {
+            Platform.runLater(() -> {
+                statusLabel.setText("⚠️ Face quality insufficient - Adjust position/lighting");
+                statusLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #f39c12; -fx-font-weight: bold;");
+            });
+            return;
+        }
+        
+        Mat face = gray.submat(rect);
+        Mat resizedFace = new Mat();
+        Imgproc.resize(face, resizedFace, new Size(200, 200));
+        
+        // Double-check quality after resize
+        if (!ImprovedRecognitionHelper.isFaceQualitySufficient(resizedFace)) {
+            Platform.runLater(() -> {
+                statusLabel.setText("Image too blurry - Hold still and ensure good lighting");
+                statusLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #f39c12; -fx-font-weight: bold;");
+            });
+            resizedFace.release();
+            face.release();
+            return;
+        }
+        
+        String fileName = Helper.baseImagePath + Helper.capturePersonEmail + "/face_" +
+                System.currentTimeMillis() + ".jpg";
+        Imgcodecs.imwrite(fileName, resizedFace);
+
+        Helper.captureCount++;
+        final int currentCount = Helper.captureCount;
+        Platform.runLater(() -> {
+            statusLabel.setText("✓ Good capture! " + currentCount + "/8");
+            statusLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #10b981; -fx-font-weight: bold;");
+        });
+
+        if (Helper.captureCount >= 8) {
+            Helper.capturingMode = false;
+            Helper.captureCount = 0;
+            
+            List<Mat> newImages = Loader.loadImages(Helper.baseImagePath + Helper.capturePersonEmail);
+            List<Mat> newHistograms = Loader.computeHistograms(newImages);
+            
+            Helper.personHistograms.put(Helper.capturePersonEmail, newHistograms);
+            
+            ImprovedRecognitionHelper.storeLBPFeatures(Helper.capturePersonEmail, newImages);
+            
+            for (Mat img : newImages) {
+                img.release();
+            }
+
+            Helper.stopCamera();
+
+            Platform.runLater(() -> {
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle("Enrollment Complete");
+                alert.setHeaderText("Success!");
+                alert.setContentText("High-quality face enrollment completed for " + Helper.capturePersonName +
+                        " (" + Helper.capturePersonEmail + ").\n\nStudent has been added to the database.");
+                alert.showAndWait();
+
+                stage.setScene(Home.createHomeScene(Helper.loggedInUsername));
+            });
+        }
+
+        resizedFace.release();
+        face.release();
+    }
+
     public static void startCameraForEnrollment(ImageView imageView, Label statusLabel,
-            Button enrollBtn, Button backBtn, Stage stage) {
+        Button enrollBtn, Button backBtn, Stage stage) {
         Helper.capture = new VideoCapture(0);
         if (!Helper.capture.isOpened()) {
             Helper.showAlert("Camera Error", "Cannot open camera!");
@@ -426,6 +497,7 @@ public class Enrollement {
                 Mat frame = new Mat();
                 Mat gray = new Mat();
                 int frameCounter = 0;
+                int captureSpacing = 20; 
 
                 while (Helper.cameraActive && Helper.capturingMode) {
                     if (Helper.capture.read(frame)) {
@@ -433,25 +505,42 @@ public class Enrollement {
                         Imgproc.cvtColor(Helper.currentFrame, gray, Imgproc.COLOR_BGR2GRAY);
 
                         MatOfRect faces = new MatOfRect();
-                        Helper.faceDetector.detectMultiScale(gray, faces, 1.1, 3, 0,
-                                new Size(30, 30), new Size());
-
+                        Helper.faceDetector.detectMultiScale(gray, faces, 1.1, 5, 0,
+                                new Size(80, 80), new Size()); 
                         Rect[] faceArray = faces.toArray();
 
-                        for (Rect rect : faceArray) {
-                            Imgproc.rectangle(Helper.currentFrame, new Point(rect.x, rect.y),
-                                    new Point(rect.x + rect.width, rect.y + rect.height),
-                                    new Scalar(16, 185, 129), 3);
+                        if (faceArray.length == 1) {
+                            Rect rect = faceArray[0];
+                            boolean isGoodQuality = ImprovedRecognitionHelper
+                                .isValidFaceForEnrollment(null, gray, rect);
+                            
+                            Scalar color = isGoodQuality ? 
+                                new Scalar(16, 185, 129) : new Scalar(255, 165, 0);
+                            
+                            Imgproc.rectangle(Helper.currentFrame, rect.tl(), rect.br(), color, 3);
 
-                            if (frameCounter % 15 == 0 && Helper.captureCount < 8) {
-                                saveFaceForEnrollment(gray, rect, statusLabel, enrollBtn, backBtn, stage);
+                            if (frameCounter % captureSpacing == 0 && 
+                                Helper.captureCount < 8 && 
+                                isGoodQuality) {
+                                saveFaceForEnrollment(gray, rect, statusLabel, 
+                                    enrollBtn, backBtn, stage);
                             }
 
                             String text = "Capturing: " + Helper.captureCount + "/8";
-                            Imgproc.putText(Helper.currentFrame, text,
+                            String quality = isGoodQuality ? "Good" : "Adjust position";
+                            Imgproc.putText(Helper.currentFrame, text + " - " + quality,
                                     new Point(rect.x, rect.y - 10),
-                                    Imgproc.FONT_HERSHEY_SIMPLEX, 0.9,
-                                    new Scalar(16, 185, 129), 2);
+                                    Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, color, 2);
+                        } else if (faceArray.length > 1) {
+                            Platform.runLater(() -> {
+                                statusLabel.setText("âš  Multiple faces detected - Only one person allowed");
+                                statusLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: #ef4444;");
+                            });
+                            
+                            for (Rect rect : faceArray) {
+                                Imgproc.rectangle(Helper.currentFrame, rect.tl(), rect.br(), 
+                                    new Scalar(0, 0, 255), 3);
+                            }
                         }
 
                         Image imageToShow = Helper.mat2Image(Helper.currentFrame);
@@ -470,49 +559,5 @@ public class Enrollement {
         Thread th = new Thread(frameGrabber);
         th.setDaemon(true);
         th.start();
-    }
-
-    public static void saveFaceForEnrollment(Mat gray, Rect rect, Label statusLabel,
-            Button enrollBtn, Button backBtn, Stage stage) {
-        Mat face = gray.submat(rect);
-        Mat resizedFace = new Mat();
-        Imgproc.resize(face, resizedFace, new Size(200, 200));
-        
-        String fileName = Helper.baseImagePath + Helper.capturePersonEmail + "/face_" +
-                System.currentTimeMillis() + ".jpg";
-        Imgcodecs.imwrite(fileName, resizedFace);
-
-        Helper.captureCount++;
-        Platform.runLater(() -> statusLabel.setText("Capturing: " + Helper.captureCount + "/8"));
-
-        if (Helper.captureCount >= 8) {
-            Helper.capturingMode = false;
-            Helper.captureCount = 0;
-            
-            List<Mat> newImages = Loader.loadImages(Helper.baseImagePath + Helper.capturePersonEmail);
-            List<Mat> newHistograms = Loader.computeHistograms(newImages);
-                        
-            Helper.personHistograms.put(Helper.capturePersonEmail, newHistograms);
-                        
-            for (Mat img : newImages) {
-                img.release();
-            }
-
-            Helper.stopCamera();
-
-            Platform.runLater(() -> {
-                Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                alert.setTitle("Enrollment Complete");
-                alert.setHeaderText("Success!");
-                alert.setContentText("Face enrollment completed for " + Helper.capturePersonName +
-                        " (" + Helper.capturePersonEmail + ").\n\nStudent has been added to the database and assigned to selected classes.");
-                alert.showAndWait();
-
-                stage.setScene(Home.createHomeScene(Helper.loggedInUsername));
-            });
-        }
-
-        resizedFace.release();
-        face.release();
     }
 }

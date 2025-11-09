@@ -28,6 +28,7 @@ public class Loader {
             System.err.println("Error loading student email-name mapping: " + e.getMessage());
         }
     }
+
     public static void loadExistingPersons() {
         File baseDir = new File(Helper.baseImagePath);
         if (!baseDir.exists()) {
@@ -38,11 +39,16 @@ public class Loader {
         File[] personDirs = baseDir.listFiles(File::isDirectory);
         if (personDirs != null) {
             for (File personDir : personDirs) {
-                String personName = personDir.getName();
+                String personEmail = personDir.getName();
                 List<Mat> images = loadImages(personDir.getAbsolutePath());
                 if (!images.isEmpty()) {
-                    Helper.personHistograms.put(personName, computeHistograms(images));
-                    System.out.println("Loaded " + images.size() + " face images for " + personName);
+                    // Store histogram features
+                    Helper.personHistograms.put(personEmail, computeHistograms(images));
+                    
+                    // Also store LBP features for improved recognition
+                    ImprovedRecognitionHelper.storeLBPFeatures(personEmail, images);
+                    
+                    System.out.println("Loaded " + images.size() + " face images for " + personEmail);
                 }
             }
         }

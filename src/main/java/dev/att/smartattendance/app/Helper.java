@@ -106,7 +106,7 @@ public class Helper {
 
      // Recognize face from Mat image
      
-    public static String recognizeFace(Mat face) {
+    public static String recognizeFace2(Mat face) {
         Mat faceHist = Loader.computeHistogram(face);
 
         String bestMatch = "Unknown";
@@ -122,6 +122,11 @@ public class Helper {
 
         faceHist.release();
         return bestMatch;
+    }
+
+    public static String recognizeFace(Mat face) {
+        // Use the improved recognition method
+        return ImprovedRecognitionHelper.recognizeFaceImproved(face);
     }
     
 

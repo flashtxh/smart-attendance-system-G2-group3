@@ -232,7 +232,10 @@ public class Login {
         mainContainer.getChildren().add(loginBox);
 
         Scene scene = new Scene(mainContainer, Helper.getScreenWidth(), Helper.getScreenHeight());
-        scene.getStylesheets().add(Login.class.getResource("/css/styles.css").toExternalForm());
+        try {
+         scene.getStylesheets().add(Login.class.getResource("/css/styles.css").toExternalForm());   
+        } catch (Exception e) {
+        }
         
         return scene;
     }

@@ -28,6 +28,7 @@ import ai.onnxruntime.OrtEnvironment;
 import ai.onnxruntime.OrtException;
 import ai.onnxruntime.OrtSession;
 import dev.att.smartattendance.app.Helper;
+import dev.att.smartattendance.app.ImprovedRecognitionHelper;
 import dev.att.smartattendance.app.Loader;
 import dev.att.smartattendance.app.pages.customAlert.CustomAlert;
 import dev.att.smartattendance.model.course.CourseDAO;
@@ -298,8 +299,9 @@ public class Class {
                         Imgproc.cvtColor(Helper.currentFrame, gray, Imgproc.COLOR_BGR2GRAY);
 
                         MatOfRect faces = new MatOfRect();
-                        Helper.faceDetector.detectMultiScale(gray, faces, 1.1, 3, 0,
-                                new Size(30, 30), new Size());
+                        // UPDATED: Increased minNeighbors from 3 to 5, minSize from 30x30 to 80x80
+                        Helper.faceDetector.detectMultiScale(gray, faces, 1.1, 5, 0,
+                                new Size(80, 80), new Size());
 
                         Rect[] faceArray = faces.toArray();
 
@@ -331,6 +333,21 @@ public class Class {
                                     Mat resizedFace = new Mat();
                                     Imgproc.resize(face, resizedFace, new Size(200, 200));
                                     
+                                    // NEW: Check face quality before recognition
+                                    if (!ImprovedRecognitionHelper.isFaceQualitySufficient(resizedFace)) {
+                                        Imgproc.rectangle(Helper.currentFrame, rect.tl(), rect.br(), 
+                                            new Scalar(255, 165, 0), 3);
+                                        Imgproc.putText(Helper.currentFrame, "Low Quality - Adjust", 
+                                            new Point(rect.x, rect.y - 10),
+                                            Imgproc.FONT_HERSHEY_SIMPLEX, 0.7, new Scalar(255, 165, 0), 2);
+                                        
+                                        resizedFace.release();
+                                        face.release();
+                                        resized.release();
+                                        faceROI.release();
+                                        continue;
+                                    }
+                                    
                                     String recognizedEmail = Helper.recognizeFace(resizedFace);
                                     
                                     if (recognizedEmail.equals(lastDetectedEmail) && !recognizedEmail.equals("Unknown")) {
@@ -345,7 +362,8 @@ public class Class {
                                         studentName = recognizedEmail.equals("Unknown") ? "Unknown" : recognizedEmail;
                                     }
                                                                         
-                                    if (consecutiveDetections >= 5 && !recognizedEmail.equals("Unknown")) {
+                                    // UPDATED: Changed from 5 to 8 consecutive detections
+                                    if (consecutiveDetections >= 8 && !recognizedEmail.equals("Unknown")) {
                                         CheckBox checkBox = studentCheckboxes.get(studentName);
                                         
                                         if (checkBox != null && !checkBox.isSelected()) {
@@ -365,7 +383,7 @@ public class Class {
 
                                     String displayText = studentName.equals("Unknown") 
                                             ? "Unknown Person" 
-                                            : studentName;
+                                            : studentName + " (" + consecutiveDetections + "/8)";
                                     
                                     Imgproc.putText(Helper.currentFrame, displayText,
                                             new Point(rect.x, rect.y - 10),
@@ -533,7 +551,7 @@ public class Class {
         
         String courseCode = (group != null) ? group.getcourse_code() : "N/A";
         String currentDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-    String currentDay = LocalDateTime.now().format(DateTimeFormatter.ofPattern("EEEE")); 
+        String currentDay = LocalDateTime.now().format(DateTimeFormatter.ofPattern("EEEE")); 
         
         try (FileWriter writer = new FileWriter(file)) {            
             writer.append("Name,Email,Course Code,Group,Date,Day,Attendance\n");
