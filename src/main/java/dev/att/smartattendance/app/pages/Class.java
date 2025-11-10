@@ -331,8 +331,9 @@ public class Class {
                                     Mat resizedFace = new Mat();
                                     Imgproc.resize(face, resizedFace, new Size(200, 200));
                                     
-                                    String recognizedEmail = Helper.recognizeFace(resizedFace);
-                                    
+                                    String recognizedEmailScore = Helper.recognizeFace(resizedFace);
+                                    String recognizedEmail = recognizedEmailScore.split(" ")[0];
+                                    String recognizedScore = recognizedEmailScore.split(" ")[1];
                                     if (recognizedEmail.equals(lastDetectedEmail) && !recognizedEmail.equals("Unknown")) {
                                         consecutiveDetections++;
                                     } else {
@@ -343,6 +344,9 @@ public class Class {
                                     String studentName = Helper.emailToNameMap.get(recognizedEmail);
                                     if (studentName == null) {                                    
                                         studentName = recognizedEmail.equals("Unknown") ? "Unknown" : recognizedEmail;
+                                    }
+                                    else{
+                                        studentName  = studentName + " " + recognizedScore + "%";
                                     }
                                                                         
                                     if (consecutiveDetections >= 5 && !recognizedEmail.equals("Unknown")) {

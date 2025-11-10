@@ -121,7 +121,7 @@ public class Helper {
         }
 
         faceHist.release();
-        return bestMatch;
+        return bestMatch + " " + String.format("%.2f", bestScore * 100);
     }
     
 
