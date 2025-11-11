@@ -409,7 +409,7 @@ public class Enrollement {
         
         System.out.println("Creating enrollment folder: " + personDir.getAbsolutePath());
 
-        Platform.runLater(() -> statusLabel.setText("Look at the camera - Capturing: 0/8"));
+        Platform.runLater(() -> statusLabel.setText("Look at the camera - Capturing: 0/16"));
 
         startCameraForEnrollment(webcamView, statusLabel, enrollBtn, backBtn, stage);
     }
