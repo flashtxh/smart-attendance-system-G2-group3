@@ -74,6 +74,7 @@ public class App extends Application {
 
         primaryStage.setTitle("Smart Attendance System");
         primaryStage.setScene(Login.createLoginScene(primaryStage));
+        primaryStage.setMaximized(true);
         primaryStage.show();
 
         primaryStage.setOnCloseRequest(e -> {

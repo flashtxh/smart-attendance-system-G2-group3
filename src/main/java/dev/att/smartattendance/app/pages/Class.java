@@ -299,7 +299,7 @@ public class Class {
 
                         MatOfRect faces = new MatOfRect();
                         Helper.faceDetector.detectMultiScale(gray, faces, 1.1, 3, 0,
-                                new Size(30, 30), new Size());
+                                new Size(60, 60), new Size());
 
                         Rect[] faceArray = faces.toArray();
 
@@ -331,7 +331,8 @@ public class Class {
                                     Mat resizedFace = new Mat();
                                     Imgproc.resize(face, resizedFace, new Size(200, 200));
                                     
-                                    String recognizedEmail = Helper.recognizeFace(resizedFace);
+                                    dev.att.smartattendance.app.Helper.RecognitionResult recog = Helper.recognizeFaceWithScore(resizedFace);
+                                    String recognizedEmail = recog.label;
                                     
                                     if (recognizedEmail.equals(lastDetectedEmail) && !recognizedEmail.equals("Unknown")) {
                                         consecutiveDetections++;
@@ -363,9 +364,12 @@ public class Class {
                                             new Point(rect.x + rect.width, rect.y + rect.height),
                                             color, 3);
 
-                                    String displayText = studentName.equals("Unknown") 
-                                            ? "Unknown Person" 
-                                            : studentName;
+                                    String displayText;
+                                    if (studentName.equals("Unknown")) {
+                                        displayText = "Unknown Person";
+                                    } else {
+                                        displayText = studentName + " (" + String.format("%.2f", recog.score) + ")";
+                                    }
                                     
                                     Imgproc.putText(Helper.currentFrame, displayText,
                                             new Point(rect.x, rect.y - 10),

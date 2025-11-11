@@ -9,6 +9,7 @@ import java.util.Set;
 
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfByte;
+import org.opencv.imgproc.Imgproc;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.objdetect.CascadeClassifier;
@@ -29,6 +30,7 @@ public class Helper {
     
     // Face recognition data
     public static Map<String, List<Mat>> personHistograms = new HashMap<>();
+    public static Map<String, List<Mat>> personHOGDescriptors = new HashMap<>();
     public static Map<String, String> userCredentials = new HashMap<>();
     
     // Enrollment
@@ -107,33 +109,125 @@ public class Helper {
      // Recognize face from Mat image
      
     public static String recognizeFace(Mat face) {
-        Mat faceHist = Loader.computeHistogram(face);
+        RecognitionResult result = recognizeFaceWithScore(face);
+        return result.label;
+    }
+
+    public static class RecognitionResult {
+        public final String label;
+        public final double score;
+        public RecognitionResult(String label, double score) {
+            this.label = label;
+            this.score = score;
+        }
+    }
+
+    public static RecognitionResult recognizeFaceWithScore(Mat face) {
+        Mat lbpFeatures = Loader.computeLBPFeatures(face);
+        Mat hogFeatures = Loader.computeHOGFeatures(face);
 
         String bestMatch = "Unknown";
-        double bestScore = 0.7; // threshold for recognition
+        double bestScore = 0.0;
+        String secondBest = "Unknown";
+        double secondBestScore = 0.0;
 
+        double adaptiveThreshold = getAdaptiveThreshold(personHistograms.size());
+
+        System.out.println("=== Recognition Debug ===");
         for (Map.Entry<String, List<Mat>> entry : personHistograms.entrySet()) {
-            double score = getBestHistogramScore(faceHist, entry.getValue());
-            if (score > bestScore) {
-                bestScore = score;
-                bestMatch = entry.getKey();
+            String person = entry.getKey();
+            List<Mat> lbpTemplates = entry.getValue();
+            List<Mat> hogTemplates = personHOGDescriptors.getOrDefault(person, List.of());
+
+            double lbpScore = getTopKAvgHistogramScore(lbpFeatures, lbpTemplates, 3);
+            double hogScore = getTopKAvgCosineScore(hogFeatures, hogTemplates, 3);
+            double fusedScore = (0.3 * lbpScore) + (0.7 * hogScore);
+
+            System.out.println("Person: " + person + " LBP: " + String.format("%.3f", lbpScore) +
+                               " HOG: " + String.format("%.3f", hogScore) +
+                               " Fused: " + String.format("%.3f", fusedScore));
+
+            if (fusedScore > bestScore) {
+                secondBestScore = bestScore;
+                secondBest = bestMatch;
+                bestScore = fusedScore;
+                bestMatch = person;
+            } else if (fusedScore > secondBestScore) {
+                secondBestScore = fusedScore;
+                secondBest = person;
             }
         }
 
-        faceHist.release();
-        return bestMatch;
+        // Confidence margin: reject if top-2 gap < 0.015
+        if ((bestScore - secondBestScore) < 0.015) {
+            System.out.println("Ambiguous match (gap " + String.format("%.3f", bestScore - secondBestScore) + "), rejecting.");
+            bestMatch = "Unknown";
+        }
+
+        // Adaptive thresholds by DB size
+        if (bestScore < adaptiveThreshold) {
+            System.out.println("Below adaptive threshold (" + String.format("%.2f", adaptiveThreshold) + "), rejecting.");
+            bestMatch = "Unknown";
+        }
+
+        System.out.println("Final Match: " + bestMatch + " (Score: " + String.format("%.3f", bestScore) + 
+                           ", Second: " + secondBest + " " + String.format("%.3f", secondBestScore) + ")");
+
+        lbpFeatures.release();
+        hogFeatures.release();
+        return new RecognitionResult(bestMatch, bestScore);
     }
     
 
      // Get best histogram match score
      
-    private static double getBestHistogramScore(Mat faceHist, List<Mat> histograms) {
-        double bestScore = 0;
-        for (Mat hist : histograms) {
-            double score = Imgproc.compareHist(faceHist, hist, Imgproc.HISTCMP_CORREL);
-            bestScore = Math.max(bestScore, score);
+    private static double getTopKAvgHistogramScore(Mat queryHist, List<Mat> templates, int k) {
+        if (templates == null || templates.isEmpty()) return 0.0;
+        double[] scores = new double[templates.size()];
+        for (int i = 0; i < templates.size(); i++) {
+            scores[i] = Imgproc.compareHist(queryHist, templates.get(i), Imgproc.HISTCMP_CORREL);
         }
-        return bestScore;
+        java.util.Arrays.sort(scores);
+        // take top-k from end
+        int take = Math.min(k, scores.length);
+        double sum = 0.0;
+        for (int i = 0; i < take; i++) {
+            sum += scores[scores.length - 1 - i];
+        }
+        return sum / take;
+    }
+
+    private static double getTopKAvgCosineScore(Mat queryVec, List<Mat> templates, int k) {
+        if (templates == null || templates.isEmpty() || queryVec.empty()) return 0.0;
+        double[] scores = new double[templates.size()];
+        for (int i = 0; i < templates.size(); i++) {
+            scores[i] = cosineSimilarity(queryVec, templates.get(i));
+        }
+        java.util.Arrays.sort(scores);
+        int take = Math.min(k, scores.length);
+        double sum = 0.0;
+        for (int i = 0; i < take; i++) {
+            sum += scores[scores.length - 1 - i];
+        }
+        return sum / take;
+    }
+
+    private static double cosineSimilarity(Mat a, Mat b) {
+        if (a.empty() || b.empty()) return 0.0;
+        // Ensure both are 1xN float
+        Mat af = a.reshape(1, 1);
+        Mat bf = b.reshape(1, 1);
+        double dot = af.dot(bf);
+        double na = Math.sqrt(af.dot(af));
+        double nb = Math.sqrt(bf.dot(bf));
+        if (na == 0 || nb == 0) return 0.0;
+        return dot / (na * nb);
+    }
+
+    private static double getAdaptiveThreshold(int numPersons) {
+        if (numPersons < 5) return 0.85;
+        if (numPersons <= 15) return 0.88;
+        return 0.92;
     }
     
 

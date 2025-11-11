@@ -13,6 +13,9 @@ import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
+import org.opencv.core.Core;
+import org.opencv.core.MatOfDouble;
+import org.opencv.core.CvType;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.videoio.VideoCapture;
@@ -411,6 +414,43 @@ public class Enrollement {
         startCameraForEnrollment(webcamView, statusLabel, enrollBtn, backBtn, stage);
     }
 
+    private static boolean isFaceQualityGood(Mat face, Rect rect) {
+        if (rect.width < 80 || rect.height < 80) {
+            return false;
+        }
+        // Lighting checks
+        org.opencv.core.Scalar meanBrightness = Core.mean(face);
+        double brightness = meanBrightness.val[0];
+        if (!(brightness > 50 && brightness < 200)) {
+            return false;
+        }
+        // Contrast check (stddev)
+        MatOfDouble mean = new MatOfDouble();
+        MatOfDouble std = new MatOfDouble();
+        Core.meanStdDev(face, mean, std);
+        double contrast = std.toArray()[0];
+        if (contrast < 10) {
+            return false;
+        }
+        // Sharpness via Laplacian variance
+        Mat lap = new Mat();
+        Imgproc.Laplacian(face, lap, CvType.CV_64F);
+        MatOfDouble mu = new MatOfDouble();
+        MatOfDouble sigma = new MatOfDouble();
+        Core.meanStdDev(lap, mu, sigma);
+        double variance = sigma.toArray()[0] * sigma.toArray()[0];
+        lap.release();
+        if (variance < 50) {
+            return false;
+        }
+        // Pose validation using aspect ratio
+        double ratio = (double) rect.width / (double) rect.height;
+        if (ratio < 0.8 || ratio > 1.25) {
+            return false;
+        }
+        return true;
+    }
+
     public static void startCameraForEnrollment(ImageView imageView, Label statusLabel,
             Button enrollBtn, Button backBtn, Stage stage) {
         Helper.capture = new VideoCapture(0);
@@ -434,7 +474,7 @@ public class Enrollement {
 
                         MatOfRect faces = new MatOfRect();
                         Helper.faceDetector.detectMultiScale(gray, faces, 1.1, 3, 0,
-                                new Size(30, 30), new Size());
+                                new Size(60, 60), new Size());
 
                         Rect[] faceArray = faces.toArray();
 
@@ -443,11 +483,17 @@ public class Enrollement {
                                     new Point(rect.x + rect.width, rect.y + rect.height),
                                     new Scalar(16, 185, 129), 3);
 
-                            if (frameCounter % 15 == 0 && Helper.captureCount < 8) {
-                                saveFaceForEnrollment(gray, rect, statusLabel, enrollBtn, backBtn, stage);
+                            if (frameCounter % 10 == 0 && Helper.captureCount < 16) {
+                                Mat face = gray.submat(rect);
+                                double ratio = (double) rect.width / (double) rect.height;
+                                boolean goodAngle = ratio > 0.8 && ratio < 1.25;
+                                if (goodAngle && isFaceQualityGood(face, rect)) {
+                                    saveFaceForEnrollment(gray, rect, statusLabel, enrollBtn, backBtn, stage);
+                                }
+                                face.release();
                             }
 
-                            String text = "Capturing: " + Helper.captureCount + "/8";
+                            String text = "Capturing: " + Helper.captureCount + "/16";
                             Imgproc.putText(Helper.currentFrame, text,
                                     new Point(rect.x, rect.y - 10),
                                     Imgproc.FONT_HERSHEY_SIMPLEX, 0.9,
@@ -483,16 +529,18 @@ public class Enrollement {
         Imgcodecs.imwrite(fileName, resizedFace);
 
         Helper.captureCount++;
-        Platform.runLater(() -> statusLabel.setText("Capturing: " + Helper.captureCount + "/8"));
+        Platform.runLater(() -> statusLabel.setText("Capturing: " + Helper.captureCount + "/16"));
 
-        if (Helper.captureCount >= 8) {
+        if (Helper.captureCount >= 16) {
             Helper.capturingMode = false;
             Helper.captureCount = 0;
             
             List<Mat> newImages = Loader.loadImages(Helper.baseImagePath + Helper.capturePersonEmail);
-            List<Mat> newHistograms = Loader.computeHistograms(newImages);
+            List<Mat> newLBP = Loader.computeLBPDescriptors(newImages);
+            List<Mat> newHOG = Loader.computeHOGDescriptors(newImages);
                         
-            Helper.personHistograms.put(Helper.capturePersonEmail, newHistograms);
+            Helper.personHistograms.put(Helper.capturePersonEmail, newLBP);
+            Helper.personHOGDescriptors.put(Helper.capturePersonEmail, newHOG);
                         
             for (Mat img : newImages) {
                 img.release();
