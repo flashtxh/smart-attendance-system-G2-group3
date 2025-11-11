@@ -345,9 +345,6 @@ public class Class {
                                     if (studentName == null) {                                    
                                         studentName = recognizedEmail.equals("Unknown") ? "Unknown" : recognizedEmail;
                                     }
-                                    else{
-                                        studentName  = studentName + " " + recognizedScore + "%";
-                                    }
                                                                         
                                     if (consecutiveDetections >= 5 && !recognizedEmail.equals("Unknown")) {
                                         CheckBox checkBox = studentCheckboxes.get(studentName);
@@ -369,7 +366,7 @@ public class Class {
 
                                     String displayText = studentName.equals("Unknown") 
                                             ? "Unknown Person" 
-                                            : studentName;
+                                            : studentName  + " " + recognizedScore + "%";
                                     
                                     Imgproc.putText(Helper.currentFrame, displayText,
                                             new Point(rect.x, rect.y - 10),
