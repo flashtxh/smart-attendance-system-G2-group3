@@ -9,7 +9,6 @@ import java.util.Set;
 
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfByte;
-import org.opencv.imgproc.Imgproc;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.objdetect.CascadeClassifier;
@@ -21,6 +20,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.image.Image;
 import javafx.stage.Screen;
 
+@SuppressWarnings("unused")
 public class Helper {
     // Camera and detection
     public static VideoCapture capture;
@@ -133,7 +133,7 @@ public class Helper {
 
         double adaptiveThreshold = getAdaptiveThreshold(personHistograms.size());
 
-        System.out.println("=== Recognition Debug ===");
+        // System.out.println("=== Recognition Debug ===");
         for (Map.Entry<String, List<Mat>> entry : personHistograms.entrySet()) {
             String person = entry.getKey();
             List<Mat> lbpTemplates = entry.getValue();
@@ -143,9 +143,9 @@ public class Helper {
             double hogScore = getTopKAvgCosineScore(hogFeatures, hogTemplates, 3);
             double fusedScore = (0.3 * lbpScore) + (0.7 * hogScore);
 
-            System.out.println("Person: " + person + " LBP: " + String.format("%.3f", lbpScore) +
-                               " HOG: " + String.format("%.3f", hogScore) +
-                               " Fused: " + String.format("%.3f", fusedScore));
+            // System.out.println("Person: " + person + " LBP: " + String.format("%.3f", lbpScore) +
+            //                    " HOG: " + String.format("%.3f", hogScore) +
+            //                    " Fused: " + String.format("%.3f", fusedScore));
 
             if (fusedScore > bestScore) {
                 secondBestScore = bestScore;
@@ -160,18 +160,18 @@ public class Helper {
 
         // Confidence margin: reject if top-2 gap < 0.015
         if ((bestScore - secondBestScore) < 0.015) {
-            System.out.println("Ambiguous match (gap " + String.format("%.3f", bestScore - secondBestScore) + "), rejecting.");
+            // System.out.println("Ambiguous match (gap " + String.format("%.3f", bestScore - secondBestScore) + "), rejecting.");
             bestMatch = "Unknown";
         }
 
         // Adaptive thresholds by DB size
         if (bestScore < adaptiveThreshold) {
-            System.out.println("Below adaptive threshold (" + String.format("%.2f", adaptiveThreshold) + "), rejecting.");
+            // System.out.println("Below adaptive threshold (" + String.format("%.2f", adaptiveThreshold) + "), rejecting.");
             bestMatch = "Unknown";
         }
 
-        System.out.println("Final Match: " + bestMatch + " (Score: " + String.format("%.3f", bestScore) + 
-                           ", Second: " + secondBest + " " + String.format("%.3f", secondBestScore) + ")");
+        // System.out.println("Final Match: " + bestMatch + " (Score: " + String.format("%.3f", bestScore) + 
+        //                    ", Second: " + secondBest + " " + String.format("%.3f", secondBestScore) + ")");
 
         lbpFeatures.release();
         hogFeatures.release();

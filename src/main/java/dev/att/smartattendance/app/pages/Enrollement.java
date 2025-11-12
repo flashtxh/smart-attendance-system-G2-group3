@@ -7,15 +7,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.opencv.core.Core;
+import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfDouble;
 import org.opencv.core.MatOfRect;
 import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
-import org.opencv.core.Core;
-import org.opencv.core.MatOfDouble;
-import org.opencv.core.CvType;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.videoio.VideoCapture;
@@ -445,10 +445,7 @@ public class Enrollement {
         }
         // Pose validation using aspect ratio
         double ratio = (double) rect.width / (double) rect.height;
-        if (ratio < 0.8 || ratio > 1.25) {
-            return false;
-        }
-        return true;
+        return !(ratio < 0.8 || ratio > 1.25);
     }
 
     public static void startCameraForEnrollment(ImageView imageView, Label statusLabel,
