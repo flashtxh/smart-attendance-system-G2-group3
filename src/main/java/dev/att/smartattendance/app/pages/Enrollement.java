@@ -33,7 +33,6 @@ import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
@@ -546,12 +545,11 @@ public class Enrollement {
             Helper.stopCamera();
 
             Platform.runLater(() -> {
-                Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                alert.setTitle("Enrollment Complete");
-                alert.setHeaderText("Success!");
-                alert.setContentText("Face enrollment completed for " + Helper.capturePersonName +
-                        " (" + Helper.capturePersonEmail + ").\n\nStudent has been added to the database and assigned to selected classes.");
-                alert.showAndWait();
+                CustomAlert.showSuccess(
+                    "Enrollment Complete",
+                    "Face enrollment completed for " + Helper.capturePersonName +
+                    " (" + Helper.capturePersonEmail + ").\n\nStudent has been added to the database and assigned to selected classes."
+                );
 
                 stage.setScene(Home.createHomeScene(Helper.loggedInUsername));
             });
