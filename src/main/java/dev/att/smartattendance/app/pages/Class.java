@@ -198,7 +198,7 @@ public class Class {
         Button saveButton = new Button("Save Attendance");
         saveButton.getStyleClass().add("save-button");
 
-        Button exportButton = new Button("Export to Excel");
+        Button exportButton = new Button("Export as CSV");
         exportButton.getStyleClass().add("export-button");
 
         saveButton.setOnAction(e -> {
