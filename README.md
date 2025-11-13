@@ -58,8 +58,8 @@ mvn install:install-file
 - Password: admin
 
 **Professor Account**
-- Username: 
-- Password: 
+- Username: robertlee@smu.edu.sg
+- Password: hashed_pw_1
 
 **TA Account**
 - Username: TA7@smu.edu.sg
