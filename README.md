@@ -39,6 +39,29 @@ mvn install:install-file
 	"-Dversion=4.8.0" 
 	"-Dpackaging=jar"
 ```
+## Role-Based Permissions
+- **Admin**
+  - Create/edit courses
+  - Create new class sessions
+  - Add professors and TAs
+  - Enroll students
+  - Manage classes
+  - Take attendance
+- **Professor / TA**
+  - Enroll students (for classes assigned to them)
+  - Take attendance
+
+## Default Login Accounts
+
+**Admin Account**
+- Username: admin
+- Password: admin
+**Professor Account**
+- Username: 
+- Password: 
+**TA Account**
+- Username: TA7@smu.edu.sg
+- Password: ta123
 
 ## Notes
 - Make sure `attendance.db` is created in the project directory on first run.
