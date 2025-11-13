@@ -6,7 +6,7 @@ The system also includes Role-Based Access Control (RBAC), ensuring different pe
 
 1. **Clone the repository**
 	```
-	git clone https://github.com//smart-attendance-system-G2-group3.git 
+	git clone https://github.com/flashtxh/smart-attendance-system-G2-group3.git
 	```
 2. **Install Java 17+ and Maven**
 3. **Build the project**
