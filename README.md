@@ -56,9 +56,11 @@ mvn install:install-file
 **Admin Account**
 - Username: admin
 - Password: admin
+
 **Professor Account**
 - Username: 
 - Password: 
+
 **TA Account**
 - Username: TA7@smu.edu.sg
 - Password: ta123
